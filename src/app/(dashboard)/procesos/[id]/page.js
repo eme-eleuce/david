@@ -252,8 +252,8 @@ export default function ProcesoPage({ params }) {
         onConfirm={confirmDelete}
         loading={deleting}
         title="Eliminar proceso"
-        message="¿Seguro que quieres eliminar este proceso y sus documentos? Esta acción no se puede deshacer."
-        confirmLabel="Sí, eliminar"
+        message="El proceso y sus documentos irán a la Papelera (90 días). Podrás restaurarlos o borrarlos definitivamente desde allí."
+        confirmLabel="Mover a papelera"
       />
     </div>
   );

@@ -363,10 +363,10 @@ export default function ExpedientePage() {
         title="Eliminar del expediente"
         message={
           docToDelete
-            ? `¿Seguro que quieres eliminar “${docToDelete.nombre}”?`
+            ? `“${docToDelete.nombre}” irá a la Papelera (90 días). Podrás restaurarlo o borrarlo definitivamente desde allí.`
             : ""
         }
-        confirmLabel="Sí, eliminar"
+        confirmLabel="Mover a papelera"
       />
     </div>
   );

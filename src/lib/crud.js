@@ -1,8 +1,15 @@
 import { createClient } from "@/lib/supabase/client";
 import { slugify } from "@/lib/slug";
 
+/** Días en papelera antes del borrado definitivo (purge). */
+export const PAPELERA_RETENTION_DAYS = 90;
+
 function client() {
   return createClient();
+}
+
+function nowIso() {
+  return new Date().toISOString();
 }
 
 export async function createEmpresa({ nombre, activa = true }) {
@@ -76,9 +83,67 @@ export async function updateProceso(id, fields) {
     .single();
 }
 
+/** Mueve el proceso (y sus documentos activos) a la papelera. */
 export async function deleteProceso(id) {
   const supabase = client();
-  return supabase.from("procesos").delete().eq("id", id);
+  const deletedAt = nowIso();
+  const procesoId = Number(id);
+
+  const { error: docsError } = await supabase
+    .from("documentos")
+    .update({ deleted_at: deletedAt })
+    .eq("proceso_id", procesoId)
+    .is("deleted_at", null);
+
+  if (docsError) return { data: null, error: docsError };
+
+  return supabase
+    .from("procesos")
+    .update({ deleted_at: deletedAt })
+    .eq("id", procesoId)
+    .select("*")
+    .single();
+}
+
+/** Restaura un proceso y todos sus documentos desde la papelera. */
+export async function restoreProceso(id) {
+  const supabase = client();
+  const procesoId = Number(id);
+
+  const { error: procError } = await supabase
+    .from("procesos")
+    .update({ deleted_at: null })
+    .eq("id", procesoId);
+
+  if (procError) return { error: procError };
+
+  const { error: docsError } = await supabase
+    .from("documentos")
+    .update({ deleted_at: null })
+    .eq("proceso_id", procesoId);
+
+  return { error: docsError };
+}
+
+/** Borra definitivamente un proceso y sus archivos en Storage. */
+export async function purgeProceso(id) {
+  const supabase = client();
+  const procesoId = Number(id);
+
+  const { data: docs } = await supabase
+    .from("documentos")
+    .select("storage_path")
+    .eq("proceso_id", procesoId);
+
+  const paths = (docs ?? [])
+    .map((d) => d.storage_path)
+    .filter(Boolean);
+
+  if (paths.length) {
+    await supabase.storage.from("documentos").remove(paths);
+  }
+
+  return supabase.from("procesos").delete().eq("id", procesoId);
 }
 
 export async function uploadDocumento({ procesoId, tipo, file }) {
@@ -112,7 +177,29 @@ export async function uploadDocumento({ procesoId, tipo, file }) {
   return { data, error: null };
 }
 
+/** Mueve un documento de proceso a la papelera (no borra Storage aún). */
 export async function deleteDocumento(doc) {
+  const supabase = client();
+  return supabase
+    .from("documentos")
+    .update({ deleted_at: nowIso() })
+    .eq("id", doc.id)
+    .select("*")
+    .single();
+}
+
+export async function restoreDocumento(id) {
+  const supabase = client();
+  return supabase
+    .from("documentos")
+    .update({ deleted_at: null })
+    .eq("id", id)
+    .select("*")
+    .single();
+}
+
+/** Borra definitivamente un documento y su archivo en Storage. */
+export async function purgeDocumento(doc) {
   const supabase = client();
 
   if (doc.storagePath) {
@@ -153,7 +240,28 @@ export async function uploadExpedienteDocumento({ empresaId, file }) {
   return { data, error: null };
 }
 
+/** Mueve un documento de expediente a la papelera. */
 export async function deleteExpedienteDocumento(doc) {
+  const supabase = client();
+  return supabase
+    .from("expediente_documentos")
+    .update({ deleted_at: nowIso() })
+    .eq("id", doc.id)
+    .select("*")
+    .single();
+}
+
+export async function restoreExpedienteDocumento(id) {
+  const supabase = client();
+  return supabase
+    .from("expediente_documentos")
+    .update({ deleted_at: null })
+    .eq("id", id)
+    .select("*")
+    .single();
+}
+
+export async function purgeExpedienteDocumento(doc) {
   const supabase = client();
 
   if (doc.storagePath) {
@@ -161,6 +269,45 @@ export async function deleteExpedienteDocumento(doc) {
   }
 
   return supabase.from("expediente_documentos").delete().eq("id", doc.id);
+}
+
+/**
+ * Lista ítems en papelera (deleted_at no nulo), más recientes primero.
+ * Documentos de proceso: solo los cuyo proceso NO está en papelera
+ * (los del proceso borrado se restauran junto con el proceso).
+ */
+export async function fetchPapelera() {
+  const supabase = client();
+
+  const [procesosRes, documentosRes, expedienteRes] = await Promise.all([
+    supabase
+      .from("procesos")
+      .select("*")
+      .not("deleted_at", "is", null)
+      .order("deleted_at", { ascending: false }),
+    supabase
+      .from("documentos")
+      .select("*")
+      .not("deleted_at", "is", null)
+      .order("deleted_at", { ascending: false }),
+    supabase
+      .from("expediente_documentos")
+      .select("*")
+      .not("deleted_at", "is", null)
+      .order("deleted_at", { ascending: false }),
+  ]);
+
+  const error =
+    procesosRes.error || documentosRes.error || expedienteRes.error || null;
+
+  return {
+    data: {
+      procesos: procesosRes.data ?? [],
+      documentos: documentosRes.data ?? [],
+      expediente: expedienteRes.error ? [] : expedienteRes.data ?? [],
+    },
+    error,
+  };
 }
 
 /** TTL por defecto para vista previa / descarga: 10 minutos */

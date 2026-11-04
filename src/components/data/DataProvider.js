@@ -31,9 +31,32 @@ export function DataProvider({ children }) {
     setError(null);
     const supabase = createClient();
 
-    const [empresasRes, procesosRes, documentosRes, expedienteRes] =
+    let [empresasRes, procesosRes, documentosRes, expedienteRes] =
       await Promise.all([
         supabase.from("empresas").select("*").order("nombre"),
+        supabase
+          .from("procesos")
+          .select("*")
+          .is("deleted_at", null)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("documentos")
+          .select("*")
+          .is("deleted_at", null)
+          .order("id"),
+        supabase
+          .from("expediente_documentos")
+          .select("*")
+          .is("deleted_at", null)
+          .order("created_at", { ascending: false }),
+      ]);
+
+    // Sin migración de papelera aún: reintentar sin filtro deleted_at
+    const missingDeletedAt =
+      procesosRes.error?.message?.includes("deleted_at") ||
+      documentosRes.error?.message?.includes("deleted_at");
+    if (missingDeletedAt) {
+      [procesosRes, documentosRes, expedienteRes] = await Promise.all([
         supabase
           .from("procesos")
           .select("*")
@@ -44,6 +67,7 @@ export function DataProvider({ children }) {
           .select("*")
           .order("created_at", { ascending: false }),
       ]);
+    }
 
     if (empresasRes.error || procesosRes.error || documentosRes.error) {
       const msg =

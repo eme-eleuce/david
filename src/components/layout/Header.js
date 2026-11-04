@@ -12,6 +12,7 @@ function usePageTitle() {
   if (pathname.startsWith("/expediente")) return "Expediente";
   if (pathname.startsWith("/documentoteca")) return "Expediente";
   if (pathname.startsWith("/reportes")) return "Reportes";
+  if (pathname.startsWith("/papelera")) return "Papelera";
   if (pathname.startsWith("/perfil")) return "Mi perfil";
   if (pathname.startsWith("/procesos/")) return "Proceso";
   return "POTTS OS";
@@ -35,13 +36,13 @@ export default function Header() {
       >
         {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
       </button>
-      <h1 className="min-w-0 flex-1 truncate text-base font-semibold text-slate-900">
+      <h1 className="min-w-0 flex-1 truncate text-lg font-semibold text-slate-900">
         {title}
       </h1>
       <button
         type="button"
         onClick={openPicker}
-        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
         aria-label="Cambiar empresa"
       >
         <LayoutGrid className="h-3.5 w-3.5 text-brand" />

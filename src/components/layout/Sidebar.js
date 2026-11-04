@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   LayoutGrid,
   LogOut,
+  Trash2,
   UserRound,
   X,
 } from "lucide-react";
@@ -23,10 +24,11 @@ import { createClient } from "@/lib/supabase/client";
 const NAV_MAIN = [
   { href: "/expediente", label: "Expediente", icon: FolderOpen },
   { href: "/reportes", label: "Reportes", icon: BarChart3 },
+  { href: "/papelera", label: "Papelera", icon: Trash2 },
 ];
 
 function navLinkClass(active) {
-  return `flex items-center gap-3 rounded-r-full px-4 py-2.5 text-sm transition ${
+  return `flex items-center gap-3 rounded-r-full px-4 py-2.5 text-base transition md:text-sm ${
     active
       ? "bg-sidebar-active font-medium text-white shadow-sm"
       : "text-slate-300 hover:bg-white/5 hover:text-white"
@@ -162,7 +164,7 @@ export default function Sidebar() {
         <nav className="relative flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-3">
           {nav.map(({ href, label, icon: Icon, match }) => {
             const active = pathname.startsWith(match ?? href);
-            const afterReportes = label === "Reportes";
+            const afterPapelera = label === "Papelera";
 
             return (
               <Fragment key={label}>
@@ -174,7 +176,7 @@ export default function Sidebar() {
                   <Icon className="h-4 w-4 shrink-0" />
                   {label}
                 </Link>
-                {afterReportes ? (
+                {afterPapelera ? (
                   <button
                     type="button"
                     onClick={() => {

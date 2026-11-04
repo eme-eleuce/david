@@ -47,6 +47,13 @@ body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
+/* Tipografía un poco más grande en móvil (escala rem / Tailwind) */
+@media (max-width: 767px) {
+  html {
+    font-size: 17px;
+  }
+}
+
 /* Scrollbars sutiles en paneles internos */
 .overflow-auto,
 .overflow-y-auto,
@@ -91,6 +98,11 @@ body {
 }
 
 /* Vista previa Word / Excel */
+.office-preview {
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+
 .office-preview table {
   width: 100%;
   border-collapse: collapse;
@@ -108,6 +120,22 @@ body {
   text-align: left;
   vertical-align: top;
   white-space: nowrap;
+}
+
+@media (max-width: 639px) {
+  .office-preview {
+    font-size: 1rem;
+    line-height: 1.55;
+  }
+
+  .office-preview table {
+    font-size: 0.875rem;
+  }
+
+  .office-preview th,
+  .office-preview td {
+    white-space: normal;
+  }
 }
 
 .office-preview th {

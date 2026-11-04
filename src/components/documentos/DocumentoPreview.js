@@ -5,13 +5,13 @@ import { createPortal } from "react-dom";
 import {
   Download,
   ExternalLink,
-  FileText,
   FileWarning,
   X,
 } from "lucide-react";
 import mammoth from "mammoth";
 import * as XLSX from "xlsx";
 import DocumentoShareMenu from "@/components/documentos/DocumentoShareMenu";
+import PdfPreviewPages from "@/components/documentos/PdfPreviewPages";
 import LoadingIcon from "@/components/ui/LoadingIcon";
 import { downloadDocumentoFile, getDocumentoSignedUrl } from "@/lib/crud";
 import { TIPOS_DOCUMENTO } from "@/lib/constants";
@@ -200,8 +200,8 @@ export default function DocumentoPreview({ doc, open, onClose }) {
 
   const tipoLabel = TIPOS_DOCUMENTO[doc.tipo] ?? doc.tipo;
   const showOffice = kind === "docx" || kind === "spreadsheet";
-  /** En móvil el PDF embebido no scrollea; usamos el visor nativo */
-  const pdfNativeOnly = kind === "pdf" && isMobile === true;
+  /** En móvil: PDF con pdf.js (iframe no funciona bien en iOS/Android). */
+  const pdfMobile = kind === "pdf" && isMobile === true;
   const pdfDesktop = kind === "pdf" && isMobile === false;
   const showLoading =
     awaitingReady ||
@@ -253,7 +253,7 @@ export default function DocumentoPreview({ doc, open, onClose }) {
               className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:flex-none"
             >
               <ExternalLink className="h-4 w-4" />
-              {pdfNativeOnly ? "Ver PDF" : "Abrir"}
+              Abrir
             </a>
             <DocumentoShareMenu
               doc={doc}
@@ -322,38 +322,8 @@ export default function DocumentoPreview({ doc, open, onClose }) {
             </div>
           ) : null}
 
-          {!showLoading && !error && url && pdfNativeOnly ? (
-            <div className="flex min-h-full flex-col items-center justify-center gap-5 px-6 py-10 text-center">
-              <span className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white text-brand shadow-sm ring-1 ring-slate-200">
-                <FileText className="h-10 w-10" />
-              </span>
-              <div className="max-w-sm space-y-1.5">
-                <p className="text-base font-semibold text-slate-900">
-                  Vista previa de PDF
-                </p>
-                <p className="text-sm leading-relaxed text-slate-500">
-                  En el móvil el PDF se abre en el visor del navegador para que
-                  puedas desplazarte con normalidad.
-                </p>
-              </div>
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex w-full max-w-xs items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover"
-              >
-                <ExternalLink className="h-4 w-4" />
-                Abrir PDF
-              </a>
-              <button
-                type="button"
-                onClick={onDownloadClick}
-                disabled={downloading}
-                className="text-sm font-medium text-slate-600 underline-offset-2 hover:underline disabled:opacity-60"
-              >
-                {downloading ? "Descargando…" : "Descargar en su lugar"}
-              </button>
-            </div>
+          {!showLoading && !error && url && pdfMobile ? (
+            <PdfPreviewPages url={url} title={doc.nombre} />
           ) : null}
 
           {!showLoading && !error && url && pdfDesktop ? (
@@ -379,7 +349,7 @@ export default function DocumentoPreview({ doc, open, onClose }) {
           {!showLoading && !error && showOffice && officeHtml ? (
             <div className="bg-white p-4 sm:p-8">
               <div
-                className="office-preview mx-auto max-w-3xl text-[15px] leading-relaxed text-slate-800"
+                className="office-preview mx-auto max-w-3xl text-base leading-relaxed text-slate-800 sm:text-[15px]"
                 dangerouslySetInnerHTML={{ __html: officeHtml }}
               />
             </div>

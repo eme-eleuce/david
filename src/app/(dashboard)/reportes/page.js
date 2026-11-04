@@ -88,9 +88,15 @@ export default function ReportesPage() {
     return sortProcesos(procesos.filter((p) => p.empresaId === empresaId));
   }, [procesos, empresaId]);
 
-  // Al cambiar empresa o lista: seleccionar todos por defecto
+  // Al cambiar empresa o lista: solo procesos finalizados por defecto
   useEffect(() => {
-    setSelectedIds(new Set(procesosEmpresa.map((p) => p.id)));
+    setSelectedIds(
+      new Set(
+        procesosEmpresa
+          .filter((p) => p.estado === "finalizado")
+          .map((p) => p.id),
+      ),
+    );
     setMsg(null);
     setPreviewOpen(false);
     clearCachedFile(pdfShareCacheKey);
@@ -113,10 +119,25 @@ export default function ReportesPage() {
     [slug, selectedIds],
   );
 
+  const finalizadosCount = useMemo(
+    () => procesosEmpresa.filter((p) => p.estado === "finalizado").length,
+    [procesosEmpresa],
+  );
+
   const allSelected =
     procesosEmpresa.length > 0 &&
     selectedIds.size === procesosEmpresa.length;
   const noneSelected = selectedIds.size === 0;
+  const onlyFinalizadosSelected = useMemo(() => {
+    if (finalizadosCount === 0 || selectedIds.size !== finalizadosCount) {
+      return false;
+    }
+    return procesosEmpresa.every(
+      (p) =>
+        (p.estado === "finalizado" && selectedIds.has(p.id)) ||
+        (p.estado !== "finalizado" && !selectedIds.has(p.id)),
+    );
+  }, [procesosEmpresa, selectedIds, finalizadosCount]);
 
   function toggleOne(id) {
     setSelectedIds((prev) => {
@@ -142,11 +163,6 @@ export default function ReportesPage() {
   function clearSelection() {
     setSelectedIds(new Set());
   }
-
-  const finalizadosCount = useMemo(
-    () => procesosEmpresa.filter((p) => p.estado === "finalizado").length,
-    [procesosEmpresa],
-  );
 
   async function buildPdfFile(procesosForPdf = selectedProcesos) {
     // PDF nativo en el navegador (funciona en Vercel sin Word/LibreOffice/API)
@@ -508,27 +524,41 @@ export default function ReportesPage() {
               <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-2.5 sm:px-5">
                 <button
                   type="button"
-                  onClick={selectAll}
-                  disabled={allSelected || procesosEmpresa.length === 0}
-                  className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-40"
-                >
-                  <CheckSquare className="h-3.5 w-3.5" aria-hidden />
-                  Todos
-                </button>
-                <button
-                  type="button"
                   onClick={selectFinalizados}
                   disabled={finalizadosCount === 0}
-                  className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-40"
+                  aria-pressed={onlyFinalizadosSelected}
+                  className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition hover:bg-slate-100 disabled:opacity-40 ${
+                    onlyFinalizadosSelected
+                      ? "bg-brand-soft text-brand underline decoration-brand/70 underline-offset-2"
+                      : "text-slate-700"
+                  }`}
                 >
                   <CircleCheck className="h-3.5 w-3.5" aria-hidden />
                   Solo finalizados
                 </button>
                 <button
                   type="button"
+                  onClick={selectAll}
+                  disabled={procesosEmpresa.length === 0}
+                  aria-pressed={allSelected}
+                  className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition hover:bg-slate-100 disabled:opacity-40 ${
+                    allSelected
+                      ? "bg-brand-soft text-brand underline decoration-brand/70 underline-offset-2"
+                      : "text-slate-700"
+                  }`}
+                >
+                  <CheckSquare className="h-3.5 w-3.5" aria-hidden />
+                  Todos
+                </button>
+                <button
+                  type="button"
                   onClick={clearSelection}
-                  disabled={noneSelected}
-                  className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-40"
+                  aria-pressed={noneSelected}
+                  className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition hover:bg-slate-100 ${
+                    noneSelected
+                      ? "bg-brand-soft text-brand underline decoration-brand/70 underline-offset-2"
+                      : "text-slate-700"
+                  }`}
                 >
                   <Square className="h-3.5 w-3.5" aria-hidden />
                   Ninguno

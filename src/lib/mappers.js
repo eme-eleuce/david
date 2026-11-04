@@ -22,6 +22,7 @@ export function mapProceso(row) {
     tipoProceso: row.tipo_proceso,
     estado: row.estado,
     createdAt: row.created_at ?? null,
+    deletedAt: row.deleted_at ?? null,
   };
 }
 
@@ -32,6 +33,7 @@ export function mapDocumento(row) {
     tipo: row.tipo,
     nombre: row.nombre,
     createdAt: row.created_at ?? null,
+    deletedAt: row.deleted_at ?? null,
     url: row.storage_path
       ? null
       : `/demo/${
@@ -58,6 +60,7 @@ export function mapExpedienteDocumento(row) {
     tipo: "expediente",
     nombre: row.nombre,
     createdAt: row.created_at ?? null,
+    deletedAt: row.deleted_at ?? null,
     url: null,
     storagePath: row.storage_path,
   };
