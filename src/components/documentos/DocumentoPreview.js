@@ -42,8 +42,9 @@ async function fetchArrayBuffer(url) {
   return res.arrayBuffer();
 }
 
+/** null = aún no medido (evita flash PDF desktop→móvil). */
 function useIsMobile() {
-  const [mobile, setMobile] = useState(false);
+  const [mobile, setMobile] = useState(null);
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 639px)");
     const apply = () => setMobile(mq.matches);
@@ -58,18 +59,23 @@ export default function DocumentoPreview({ doc, open, onClose }) {
   const isMobile = useIsMobile();
   const [mounted, setMounted] = useState(false);
   const [url, setUrl] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [downloading, setDownloading] = useState(false);
   const [officeHtml, setOfficeHtml] = useState(null);
   const [sheetNames, setSheetNames] = useState([]);
   const [activeSheet, setActiveSheet] = useState(null);
   const [workbook, setWorkbook] = useState(null);
+  /** Doc que ya terminó de cargar (evita frame vacío al abrir). */
+  const [readyDocId, setReadyDocId] = useState(null);
 
   const kind = useMemo(
     () => (doc ? getPreviewKind(doc.nombre) : "other"),
     [doc],
   );
+
+  const docId = open && doc ? doc.id : null;
+  const awaitingReady = Boolean(docId) && readyDocId !== docId;
 
   useEffect(() => {
     setMounted(true);
@@ -97,29 +103,31 @@ export default function DocumentoPreview({ doc, open, onClose }) {
       setSheetNames([]);
       setActiveSheet(null);
       setWorkbook(null);
+      setLoading(false);
+      setReadyDocId(null);
       return;
     }
 
     let cancelled = false;
+    setLoading(true);
+    setReadyDocId(null);
+    setError(null);
+    setUrl(null);
+    setOfficeHtml(null);
+    setSheetNames([]);
+    setActiveSheet(null);
+    setWorkbook(null);
 
     async function load() {
-      setLoading(true);
-      setError(null);
-      setUrl(null);
-      setOfficeHtml(null);
-      setSheetNames([]);
-      setActiveSheet(null);
-      setWorkbook(null);
-
       try {
         const resolved = await resolveUrl(doc);
         if (cancelled) return;
         if (!resolved) {
           setError("No se pudo obtener el archivo para previsualizar.");
           setLoading(false);
+          setReadyDocId(doc.id);
           return;
         }
-        setUrl(resolved);
 
         const previewKind = getPreviewKind(doc.nombre);
 
@@ -129,6 +137,7 @@ export default function DocumentoPreview({ doc, open, onClose }) {
           const result = await mammoth.convertToHtml({ arrayBuffer: buffer });
           if (cancelled) return;
           setOfficeHtml(result.value || "<p>(Documento vacío)</p>");
+          setUrl(resolved);
         } else if (previewKind === "spreadsheet") {
           const buffer = await fetchArrayBuffer(resolved);
           if (cancelled) return;
@@ -144,17 +153,25 @@ export default function DocumentoPreview({ doc, open, onClose }) {
               ? XLSX.utils.sheet_to_html(sheet, { editable: false })
               : "<p>(Hoja vacía)</p>",
           );
+          setUrl(resolved);
         } else if (previewKind === "doc_legacy") {
+          setUrl(resolved);
           setError(
             "Los archivos .doc antiguos no se pueden previsualizar. Convierte a .docx o descarga el archivo.",
           );
+        } else {
+          setUrl(resolved);
         }
 
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setReadyDocId(doc.id);
+        }
       } catch (err) {
         if (cancelled) return;
         setError(err?.message || "Error al cargar la vista previa.");
         setLoading(false);
+        setReadyDocId(doc.id);
       }
     }
 
@@ -184,7 +201,12 @@ export default function DocumentoPreview({ doc, open, onClose }) {
   const tipoLabel = TIPOS_DOCUMENTO[doc.tipo] ?? doc.tipo;
   const showOffice = kind === "docx" || kind === "spreadsheet";
   /** En móvil el PDF embebido no scrollea; usamos el visor nativo */
-  const pdfNativeOnly = kind === "pdf" && isMobile;
+  const pdfNativeOnly = kind === "pdf" && isMobile === true;
+  const pdfDesktop = kind === "pdf" && isMobile === false;
+  const showLoading =
+    awaitingReady ||
+    loading ||
+    (kind === "pdf" && isMobile === null && !error);
 
   return createPortal(
     <div className="fixed inset-0 z-[200] flex flex-col bg-slate-900/50 sm:items-center sm:justify-center sm:p-4">
@@ -221,8 +243,8 @@ export default function DocumentoPreview({ doc, open, onClose }) {
           </button>
         </div>
 
-        {/* Acciones */}
-        {url && !loading && (
+        {/* Acciones: solo cuando la preview ya está lista */}
+        {url && !showLoading && !error && (
           <div className="flex shrink-0 items-center gap-2 border-b border-slate-100 px-3 py-2.5 sm:px-5">
             <a
               href={url}
@@ -250,7 +272,10 @@ export default function DocumentoPreview({ doc, open, onClose }) {
           </div>
         )}
 
-        {kind === "spreadsheet" && sheetNames.length > 1 && !loading && !error && (
+        {kind === "spreadsheet" &&
+          sheetNames.length > 1 &&
+          !showLoading &&
+          !error && (
           <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-slate-100 px-3 py-2 sm:px-5">
             {sheetNames.map((name) => (
               <button
@@ -274,14 +299,14 @@ export default function DocumentoPreview({ doc, open, onClose }) {
           className="preview-scroll min-h-0 flex-1 overflow-y-auto overflow-x-auto bg-slate-100"
           style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y pan-x" }}
         >
-          {loading && (
+          {showLoading ? (
             <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-3 text-sm text-slate-500">
               <LoadingIcon className="h-8 w-8" />
               Cargando vista previa…
             </div>
-          )}
+          ) : null}
 
-          {!loading && error && (
+          {!showLoading && error ? (
             <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-3 px-6 text-center text-sm text-slate-600">
               <FileWarning className="h-10 w-10 text-amber-500" />
               <p>{error}</p>
@@ -295,9 +320,9 @@ export default function DocumentoPreview({ doc, open, onClose }) {
                 {downloading ? "Descargando…" : "Descargar archivo"}
               </button>
             </div>
-          )}
+          ) : null}
 
-          {!loading && !error && url && pdfNativeOnly && (
+          {!showLoading && !error && url && pdfNativeOnly ? (
             <div className="flex min-h-full flex-col items-center justify-center gap-5 px-6 py-10 text-center">
               <span className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white text-brand shadow-sm ring-1 ring-slate-200">
                 <FileText className="h-10 w-10" />
@@ -329,17 +354,17 @@ export default function DocumentoPreview({ doc, open, onClose }) {
                 {downloading ? "Descargando…" : "Descargar en su lugar"}
               </button>
             </div>
-          )}
+          ) : null}
 
-          {!loading && !error && url && kind === "pdf" && !isMobile && (
+          {!showLoading && !error && url && pdfDesktop ? (
             <iframe
               title={doc.nombre}
               src={`${url}#view=FitH`}
               className="block h-[min(80dvh,900px)] w-full border-0 bg-white"
             />
-          )}
+          ) : null}
 
-          {!loading && !error && url && kind === "image" && (
+          {!showLoading && !error && url && kind === "image" ? (
             <div className="flex justify-center p-3 sm:p-6">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -349,18 +374,18 @@ export default function DocumentoPreview({ doc, open, onClose }) {
                 draggable={false}
               />
             </div>
-          )}
+          ) : null}
 
-          {!loading && !error && showOffice && officeHtml && (
+          {!showLoading && !error && showOffice && officeHtml ? (
             <div className="bg-white p-4 sm:p-8">
               <div
                 className="office-preview mx-auto max-w-3xl text-[15px] leading-relaxed text-slate-800"
                 dangerouslySetInnerHTML={{ __html: officeHtml }}
               />
             </div>
-          )}
+          ) : null}
 
-          {!loading && !error && url && kind === "other" && (
+          {!showLoading && !error && url && kind === "other" ? (
             <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-3 px-6 text-center">
               <FileWarning className="h-10 w-10 text-slate-400" />
               <p className="text-sm text-slate-600">
@@ -376,7 +401,7 @@ export default function DocumentoPreview({ doc, open, onClose }) {
                 {downloading ? "Descargando…" : "Descargar archivo"}
               </button>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>,

@@ -40,7 +40,7 @@ export default function EmpresaSelectModal() {
       <button
         type="button"
         aria-label={required ? undefined : "Cerrar"}
-        className="absolute inset-0 bg-slate-900/55"
+        className="absolute inset-0 bg-slate-900/40 backdrop-blur-md transition-[backdrop-filter,background-color] duration-300"
         onClick={() => {
           if (!required) closePicker();
         }}
@@ -49,7 +49,7 @@ export default function EmpresaSelectModal() {
         role="dialog"
         aria-modal="true"
         aria-label="Elegir empresa"
-        className="relative z-10 flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white shadow-xl sm:mx-4 sm:rounded-2xl"
+        className="relative z-10 flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white shadow-2xl sm:mx-4 sm:rounded-2xl"
       >
         <div className="shrink-0 border-b border-slate-100 px-5 py-4">
           <p className="text-xs font-semibold uppercase tracking-widest text-brand">

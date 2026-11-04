@@ -2,7 +2,9 @@ export function formatMoney(value) {
   return new Intl.NumberFormat("es-EC", {
     style: "currency",
     currency: "USD",
-  }).format(value);
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(Number(value) || 0);
 }
 
 /** Fecha corta fija (sin Intl) para listados. */

@@ -10,9 +10,9 @@ function usePageTitle() {
 
   if (pathname === "/") return "Escoger empresa";
   if (pathname.startsWith("/empresas/")) return "Vista general";
-  if (pathname.startsWith("/documentoteca")) return "Documentoteca";
+  if (pathname.startsWith("/expediente")) return "Expediente";
+  if (pathname.startsWith("/documentoteca")) return "Expediente";
   if (pathname.startsWith("/reportes")) return "Reportes";
-  if (pathname.startsWith("/configuracion")) return "Configuración";
   if (pathname.startsWith("/perfil")) return "Mi perfil";
   if (pathname.startsWith("/procesos/")) return "Proceso";
   return "POTTS OS";

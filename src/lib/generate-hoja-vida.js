@@ -54,9 +54,10 @@ function heading(text) {
   });
 }
 
-function sectionTitle(text) {
+function sectionTitle(text, { center = false } = {}) {
   return new Paragraph({
-    spacing: { before: 400, after: 180 },
+    alignment: center ? AlignmentType.CENTER : AlignmentType.LEFT,
+    spacing: { before: 280, after: 200 },
     border: {
       bottom: {
         style: BorderStyle.SINGLE,
@@ -70,42 +71,6 @@ function sectionTitle(text) {
         text,
         bold: true,
         size: 22,
-        font: "Arial",
-        color: "000000",
-      }),
-    ],
-  });
-}
-
-function bodyLine(label, value) {
-  return new Paragraph({
-    spacing: { after: 100 },
-    children: [
-      new TextRun({
-        text: `${label}: `,
-        bold: true,
-        size: FONT_PT9,
-        font: "Arial",
-        color: "000000",
-      }),
-      new TextRun({
-        text: value,
-        size: FONT_PT9,
-        font: "Arial",
-        color: "000000",
-      }),
-    ],
-  });
-}
-
-function bullet(text) {
-  return new Paragraph({
-    spacing: { after: 80 },
-    indent: { left: 360 },
-    children: [
-      new TextRun({
-        text: `•  ${text}`,
-        size: FONT_PT9,
         font: "Arial",
         color: "000000",
       }),
@@ -171,17 +136,8 @@ function buildBodyChildren(meta, rows) {
       spacing: { after: 200 },
       children: [],
     }),
-    bodyLine("RAZÓN SOCIAL", meta.razonSocial),
-    bodyLine("REPRESENTANTE LEGAL", meta.representanteLegal),
-    bodyLine("RUC", meta.ruc),
-    sectionTitle("SERVICIOS"),
+    sectionTitle("EXPERIENCIA", { center: true }),
   ];
-
-  for (const s of meta.servicios) {
-    children.push(bullet(s));
-  }
-
-  children.push(sectionTitle("EXPERIENCIA"));
 
   const wObjeto = 3400;
   const wEntidad = 2300;
@@ -250,6 +206,125 @@ function buildBodyChildren(meta, rows) {
 }
 
 /**
+ * Margen superior amplio para que el cuerpo no se meta debajo del
+ * encabezado flotante (sobre todo desde la 2.ª página).
+ * 2880 DXA ≈ 2".
+ * No tocamos w:header: logo izq. + gráfico der. flotan relativos a él.
+ */
+const PAGE_TOP_MARGIN = 2880;
+const DXA_TO_EMU = 635;
+
+/** Solo sube w:top; deja w:header como en la plantilla. Sin pies. */
+function withHeaderClearance(sectPrXml) {
+  let xml = sectPrXml.replace(/<w:footerReference\b[^>]*\/>/gi, "");
+  if (/\bw:top="/i.test(xml)) {
+    xml = xml.replace(/\bw:top="\d+"/i, `w:top="${PAGE_TOP_MARGIN}"`);
+  }
+  return xml;
+}
+
+function readPgMarAttr(sectPrXml, attr, fallback) {
+  const re = new RegExp(`\\bw:${attr}="(\\d+)"`, "i");
+  const m = sectPrXml.match(re);
+  return m ? Number(m[1]) : fallback;
+}
+
+/**
+ * Si la plantilla tiene “primera página distinta” (titlePg) y el encabezado
+ * rico está solo en first, úsalo también como default en todas las hojas.
+ */
+function preferFirstPageHeader(sectPrXml) {
+  if (!/<w:titlePg\b/i.test(sectPrXml)) return sectPrXml;
+
+  const firstMatch =
+    sectPrXml.match(
+      /<w:headerReference\b[^>]*\bw:type="first"[^>]*\br:id="([^"]+)"[^>]*\/>/i,
+    ) ||
+    sectPrXml.match(
+      /<w:headerReference\b[^>]*\br:id="([^"]+)"[^>]*\bw:type="first"[^>]*\/>/i,
+    );
+  if (!firstMatch) return sectPrXml;
+
+  const firstId = firstMatch[1];
+  let xml = sectPrXml.replace(/<w:titlePg\b[^>]*\/>/gi, "");
+
+  if (/<w:headerReference\b[^>]*\bw:type="default"/i.test(xml)) {
+    xml = xml.replace(
+      /(<w:headerReference\b[^>]*\bw:type="default"[^>]*\br:id=")[^"]+(")/i,
+      `$1${firstId}$2`,
+    );
+    xml = xml.replace(
+      /(<w:headerReference\b[^>]*\br:id=")[^"]+("[^>]*\bw:type="default")/i,
+      `$1${firstId}$2`,
+    );
+  }
+
+  // Quitar refs “first” para no duplicar
+  xml = xml.replace(/<w:headerReference\b[^>]*\bw:type="first"[^>]*\/>/gi, "");
+  xml = xml.replace(/<w:footerReference\b[^>]*\bw:type="first"[^>]*\/>/gi, "");
+
+  return xml;
+}
+
+/**
+ * Algunas plantillas (Kurs, Duropegasa) ponen arte del membrete en el body.
+ * Conservamos esos bloques con dibujos al inicio del documento.
+ */
+function extractBodyDecorations(tplBodyInner) {
+  const withoutSect = tplBodyInner.replace(
+    /<w:sectPr\b[\s\S]*?<\/w:sectPr>/i,
+    "",
+  );
+  const chunks = withoutSect.split(/(?=<w:(?:p|tbl)[\s>])/i);
+  return chunks.filter((chunk) =>
+    /<w:drawing\b|<w:pict\b|v:imagedata/i.test(chunk),
+  );
+}
+
+/**
+ * Multinuclear ancla logo/gráfico a la página; Duropegasa/Ecuasinergy usan
+ * column/paragraph y se desalinea al cambiar márgenes. Normalizamos a page.
+ */
+function stabilizeHeaderAnchors(headerXml, { leftMarginDxa, headerDistDxa }) {
+  const leftEmu = leftMarginDxa * DXA_TO_EMU;
+  const headerEmu = headerDistDxa * DXA_TO_EMU;
+
+  let xml = headerXml.replace(
+    /<wp:positionH(\s+)relativeFrom="column">(\s*)<wp:posOffset>(-?\d+)<\/wp:posOffset>/gi,
+    (_m, sp1, sp2, off) =>
+      `<wp:positionH${sp1}relativeFrom="page">${sp2}<wp:posOffset>${Number(off) + leftEmu}</wp:posOffset>`,
+  );
+
+  xml = xml.replace(
+    /<wp:positionV(\s+)relativeFrom="paragraph">(\s*)<wp:posOffset>(-?\d+)<\/wp:posOffset>/gi,
+    (_m, sp1, sp2, off) => {
+      const v = Math.max(0, Number(off) + headerEmu);
+      return `<wp:positionV${sp1}relativeFrom="page">${sp2}<wp:posOffset>${v}</wp:posOffset>`;
+    },
+  );
+
+  return xml;
+}
+
+function headerTargetsFromSectPr(sectPrXml, documentRelsXml) {
+  const ids = [
+    ...sectPrXml.matchAll(/<w:headerReference\b[^>]*\br:id="([^"]+)"/gi),
+  ].map((m) => m[1]);
+  const targets = [];
+  for (const id of ids) {
+    const m =
+      documentRelsXml.match(
+        new RegExp(`Id="${id}"[^>]*Target="([^"]+)"`, "i"),
+      ) ||
+      documentRelsXml.match(
+        new RegExp(`Target="([^"]+)"[^>]*Id="${id}"`, "i"),
+      );
+    if (m?.[1]) targets.push(m[1].replace(/^\//, ""));
+  }
+  return [...new Set(targets)];
+}
+
+/**
  * Inserta el cuerpo generado en la plantilla (conserva encabezado/pie).
  */
 async function mergeIntoTemplate(contentBlob, templatePath) {
@@ -258,7 +333,9 @@ async function mergeIntoTemplate(contentBlob, templatePath) {
     contentBlob.arrayBuffer(),
   ]);
   if (!tplRes.ok) {
-    throw new Error("No se pudo cargar la plantilla Word.");
+    throw new Error(
+      `No se pudo cargar la plantilla Word (${templatePath}).`,
+    );
   }
 
   const tplZip = await JSZip.loadAsync(await tplRes.arrayBuffer());
@@ -273,15 +350,35 @@ async function mergeIntoTemplate(contentBlob, templatePath) {
     throw new Error("Plantilla o documento generado inválido.");
   }
 
-  const sectPr = tplBody[1].match(/<w:sectPr\b[\s\S]*?<\/w:sectPr>/i)?.[0];
-  if (!sectPr) {
+  const sectPrRaw = tplBody[1].match(/<w:sectPr\b[\s\S]*?<\/w:sectPr>/i)?.[0];
+  if (!sectPrRaw) {
     throw new Error("La plantilla no tiene sección (sectPr).");
   }
+  const sectPr = withHeaderClearance(preferFirstPageHeader(sectPrRaw));
 
+  const leftMarginDxa = readPgMarAttr(sectPrRaw, "left", 1440);
+  const headerDistDxa = readPgMarAttr(sectPrRaw, "header", 720);
+  const documentRels = await tplZip
+    .file("word/_rels/document.xml.rels")
+    .async("string");
+  for (const target of headerTargetsFromSectPr(sectPr, documentRels)) {
+    const headerPath = target.startsWith("word/")
+      ? target
+      : `word/${target}`;
+    const headerFile = tplZip.file(headerPath);
+    if (!headerFile) continue;
+    const headerXml = await headerFile.async("string");
+    tplZip.file(
+      headerPath,
+      stabilizeHeaderAnchors(headerXml, { leftMarginDxa, headerDistDxa }),
+    );
+  }
+
+  const decorations = extractBodyDecorations(tplBody[1]).join("");
   const genInner = genBody[1].replace(/<w:sectPr\b[\s\S]*?<\/w:sectPr>/i, "");
   const newDocXml = tplDocXml.replace(
     /<w:body\b[^>]*>[\s\S]*<\/w:body>/i,
-    `<w:body>${genInner}${sectPr}</w:body>`,
+    `<w:body>${decorations}${genInner}${sectPr}</w:body>`,
   );
 
   tplZip.file("word/document.xml", newDocXml);
@@ -304,8 +401,7 @@ export async function generateHojaVidaDocx({ slug, procesos }) {
   const meta = getHojaVidaMeta(slug);
   if (!meta) {
     return {
-      error:
-        "Aún no hay plantilla de hoja de vida para esta empresa. Por ahora solo Multinuclear.",
+      error: "Aún no hay plantilla de hoja de vida para esta empresa.",
     };
   }
 
@@ -318,7 +414,7 @@ export async function generateHojaVidaDocx({ slug, procesos }) {
 
   const children = buildBodyChildren(meta, rows);
 
-  // Cuerpo solo; el encabezado viene de Multinuclear.docx
+  // Cuerpo solo; el encabezado/pie vienen de la plantilla de la empresa
   const doc = new Document({
     sections: [
       {
@@ -326,7 +422,7 @@ export async function generateHojaVidaDocx({ slug, procesos }) {
           page: {
             size: { width: 11909, height: 16834 },
             margin: {
-              top: 1440,
+              top: PAGE_TOP_MARGIN,
               right: 1440,
               bottom: 1440,
               left: 1440,

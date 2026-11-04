@@ -90,7 +90,7 @@ export default function ProcesoPage({ params }) {
     <div className="flex min-h-0 flex-col gap-2 overflow-auto md:h-full md:gap-4 md:overflow-hidden">
       <Link
         href={backHref}
-        className="inline-flex w-fit shrink-0 items-center gap-1 text-xs font-medium text-slate-500 transition hover:text-brand sm:gap-1.5 sm:text-sm md:hidden"
+        className="inline-flex w-fit shrink-0 items-center gap-1 text-xs font-medium text-slate-500 transition hover:text-brand sm:gap-1.5 sm:text-sm"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         Volver
@@ -109,13 +109,6 @@ export default function ProcesoPage({ params }) {
         <div className="relative space-y-2.5 p-3 sm:space-y-3 sm:p-4 md:p-4">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
-              <Link
-                href={backHref}
-                className="mb-1.5 hidden items-center gap-1 text-xs font-medium text-slate-500 transition hover:text-brand md:inline-flex"
-              >
-                <ArrowLeft className="h-3.5 w-3.5" />
-                Volver
-              </Link>
               <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                 <h1 className="min-w-0 text-base font-semibold leading-snug tracking-tight text-slate-900 sm:text-xl md:text-2xl">
                   {proceso.objeto}

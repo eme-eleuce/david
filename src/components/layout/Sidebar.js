@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import {
   BarChart3,
   Building2,
@@ -10,7 +10,6 @@ import {
   LayoutDashboard,
   LayoutGrid,
   LogOut,
-  Settings,
   UserRound,
   X,
 } from "lucide-react";
@@ -21,12 +20,18 @@ import LoadingIcon from "@/components/ui/LoadingIcon";
 import Modal from "@/components/ui/Modal";
 import { createClient } from "@/lib/supabase/client";
 
-const NAV_STATIC = [
-  { href: "/documentoteca", label: "Documentoteca", icon: FolderOpen },
+const NAV_MAIN = [
+  { href: "/expediente", label: "Expediente", icon: FolderOpen },
   { href: "/reportes", label: "Reportes", icon: BarChart3 },
-  { href: "/configuracion", label: "Configuración", icon: Settings },
-  { href: "/perfil", label: "Mi perfil", icon: UserRound },
 ];
+
+function navLinkClass(active) {
+  return `flex items-center gap-3 rounded-r-full px-4 py-2.5 text-sm transition ${
+    active
+      ? "bg-sidebar-active font-medium text-white shadow-sm"
+      : "text-slate-300 hover:bg-white/5 hover:text-white"
+  }`;
+}
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -34,12 +39,58 @@ export default function Sidebar() {
   const { empresa, openPicker } = useEmpresa();
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [userName, setUserName] = useState("");
 
   const vistaHref = empresa?.slug ? `/empresas/${empresa.slug}` : "/";
   const nav = [
-    { href: vistaHref, label: "Vista general", icon: LayoutDashboard, match: "/empresas/" },
-    ...NAV_STATIC,
+    {
+      href: vistaHref,
+      label: "Vista general",
+      icon: LayoutDashboard,
+      match: "/empresas/",
+    },
+    ...NAV_MAIN,
   ];
+  const perfilActive = pathname.startsWith("/perfil");
+
+  useEffect(() => {
+    let cancelled = false;
+    const supabase = createClient();
+
+    async function loadUser() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (cancelled || !user) return;
+      const name =
+        user.user_metadata?.full_name?.trim() ||
+        user.email?.split("@")[0] ||
+        "";
+      setUserName(name);
+    }
+
+    loadUser();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      const user = session?.user;
+      if (!user) {
+        setUserName("");
+        return;
+      }
+      const name =
+        user.user_metadata?.full_name?.trim() ||
+        user.email?.split("@")[0] ||
+        "";
+      setUserName(name);
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   async function confirmLogout() {
     setLoggingOut(true);
@@ -109,49 +160,67 @@ export default function Sidebar() {
         </div>
 
         <nav className="relative flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-3">
-          <button
-            type="button"
-            onClick={() => {
-              openPicker();
-              close();
-            }}
-            className="mb-3 flex w-full items-center gap-3 rounded-r-full bg-white/10 px-4 py-2.5 text-left text-sm font-medium text-white transition hover:bg-white/15"
-          >
-            <LayoutGrid className="h-4 w-4 shrink-0" />
-            Escoger empresa
-          </button>
-
           {nav.map(({ href, label, icon: Icon, match }) => {
             const active = pathname.startsWith(match ?? href);
+            const afterReportes = label === "Reportes";
 
             return (
-              <Link
-                key={label}
-                href={href}
-                onClick={close}
-                className={`flex items-center gap-3 rounded-r-full px-4 py-2.5 text-sm transition ${
-                  active
-                    ? "bg-sidebar-active font-medium text-white shadow-sm"
-                    : "text-slate-300 hover:bg-white/5 hover:text-white"
-                }`}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                {label}
-              </Link>
+              <Fragment key={label}>
+                <Link
+                  href={href}
+                  onClick={close}
+                  className={navLinkClass(active)}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {label}
+                </Link>
+                {afterReportes ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      openPicker();
+                      close();
+                    }}
+                    className={`w-full text-left ${navLinkClass(false)}`}
+                  >
+                    <LayoutGrid className="h-4 w-4 shrink-0" />
+                    Cambiar empresa
+                  </button>
+                ) : null}
+              </Fragment>
             );
           })}
         </nav>
 
-        <div className="relative shrink-0 space-y-2 border-t border-white/10 px-4 py-4">
+        <div className="relative shrink-0 space-y-1 border-t border-white/10 p-3">
+          <Link
+            href="/perfil"
+            onClick={close}
+            className={navLinkClass(perfilActive)}
+          >
+            <UserRound className="h-4 w-4 shrink-0" />
+            <span className="min-w-0 flex-1 truncate">
+              Mi perfil
+              {userName ? (
+                <span
+                  className={`ml-1.5 font-normal ${
+                    perfilActive ? "text-white/80" : "text-sidebar-muted"
+                  }`}
+                >
+                  · {userName}
+                </span>
+              ) : null}
+            </span>
+          </Link>
           <button
             type="button"
             onClick={() => {
               close();
               setLogoutOpen(true);
             }}
-            className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm text-slate-300 transition hover:bg-white/5 hover:text-white"
+            className={`mt-1 w-full text-left ${navLinkClass(false)}`}
           >
-            <LogOut className="h-4 w-4" />
+            <LogOut className="h-4 w-4 shrink-0" />
             Cerrar sesión
           </button>
         </div>

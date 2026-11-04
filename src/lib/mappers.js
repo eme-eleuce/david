@@ -50,6 +50,19 @@ export function mapDocumento(row) {
   };
 }
 
+/** Documento del expediente empresarial (por empresa, no por proceso). */
+export function mapExpedienteDocumento(row) {
+  return {
+    id: String(row.id),
+    empresaId: String(row.empresa_id),
+    tipo: "expediente",
+    nombre: row.nombre,
+    createdAt: row.created_at ?? null,
+    url: null,
+    storagePath: row.storage_path,
+  };
+}
+
 export function computeKpis(procesos) {
   return {
     totalProcesos: procesos.length,

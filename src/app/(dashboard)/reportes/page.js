@@ -411,7 +411,7 @@ export default function ReportesPage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto">
+    <div className="flex h-full min-h-0 flex-1 flex-col gap-4 overflow-hidden">
       <header className="shrink-0">
         <h1 className="text-lg font-semibold text-slate-900 sm:text-xl">
           Reportes
@@ -561,7 +561,7 @@ export default function ReportesPage() {
                 </span>
               </div>
 
-              <div className="min-h-0 flex-1 overflow-auto">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                 {procesosEmpresa.length === 0 ? (
                   <p className="p-6 text-center text-sm text-slate-500">
                     No hay procesos para esta empresa.
@@ -603,8 +603,7 @@ export default function ReportesPage() {
             </>
           ) : (
             <p className="p-6 text-sm text-amber-700">
-              Aún no hay plantilla de hoja de vida para esta empresa. Por ahora
-              solo Multinuclear.
+              Aún no hay plantilla de hoja de vida para esta empresa.
             </p>
           )}
 
@@ -679,7 +678,16 @@ export default function ReportesPage() {
               className="relative mx-auto max-w-3xl overflow-hidden bg-white pb-10 text-black shadow-sm"
               style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
             >
-              {(hvMeta.headerLeft || hvMeta.headerRight) && (
+              {hvMeta.headerBanner ? (
+                <div className="relative mb-8 w-full overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={hvMeta.headerBanner}
+                    alt=""
+                    className="h-auto w-full object-cover object-left"
+                  />
+                </div>
+              ) : hvMeta.headerLeft || hvMeta.headerRight ? (
                 <div className="relative mb-8 flex min-h-[4.5rem] items-start justify-between">
                   {hvMeta.headerLeft ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -700,32 +708,13 @@ export default function ReportesPage() {
                     />
                   ) : null}
                 </div>
-              )}
+              ) : null}
               <div className="px-8 sm:px-12">
               <h1 className="mb-8 text-center text-xl font-bold tracking-wide uppercase">
                 {hvMeta.titulo}
               </h1>
-              <p className="text-[9pt] leading-relaxed">
-                <strong>RAZÓN SOCIAL:</strong> {hvMeta.razonSocial}
-              </p>
-              <p className="text-[9pt] leading-relaxed">
-                <strong>REPRESENTANTE LEGAL:</strong>{" "}
-                {hvMeta.representanteLegal}
-              </p>
-              <p className="mb-6 text-[9pt] leading-relaxed">
-                <strong>RUC:</strong> {hvMeta.ruc}
-              </p>
 
-              <h2 className="mb-2 border-b border-black pb-1 text-[11pt] font-bold uppercase">
-                Servicios
-              </h2>
-              <ul className="mb-6 list-disc space-y-1 pl-5 text-[9pt]">
-                {hvMeta.servicios.map((s) => (
-                  <li key={s}>{s}</li>
-                ))}
-              </ul>
-
-              <h2 className="mb-3 border-b border-black pb-1 text-[11pt] font-bold uppercase">
+              <h2 className="mb-3 border-b border-black pb-1 text-center text-[11pt] font-bold uppercase">
                 Experiencia
               </h2>
               {selectedProcesos.length === 0 ? (

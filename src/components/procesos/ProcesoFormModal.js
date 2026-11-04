@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import LoadingIcon from "@/components/ui/LoadingIcon";
 import Modal, { Field, inputClass } from "@/components/ui/Modal";
 import { useData } from "@/components/data/DataProvider";
@@ -10,6 +10,14 @@ import { createProceso, updateProceso } from "@/lib/crud";
 
 const currentYear = new Date().getFullYear();
 
+function normalizeEntidad(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .trim();
+}
+
 export default function ProcesoFormModal({
   open,
   onClose,
@@ -17,7 +25,7 @@ export default function ProcesoFormModal({
   defaultEmpresaId = null,
   onSaved,
 }) {
-  const { refresh, empresas } = useData();
+  const { refresh, empresas, procesos } = useData();
   const isEdit = Boolean(proceso);
 
   const [empresaId, setEmpresaId] = useState("");
@@ -29,6 +37,9 @@ export default function ProcesoFormModal({
   const [estado, setEstado] = useState("borrador");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [entidadOpen, setEntidadOpen] = useState(false);
+  const [entidadHighlight, setEntidadHighlight] = useState(0);
+  const entidadWrapRef = useRef(null);
 
   useEffect(() => {
     if (!open) return;
@@ -37,13 +48,93 @@ export default function ProcesoFormModal({
     );
     setObjeto(proceso?.objeto ?? "");
     setEntidadContratante(proceso?.entidadContratante ?? "");
-    setMonto(proceso != null ? String(proceso.monto) : "");
+    setMonto(
+      proceso != null ? String(Math.round(Number(proceso.monto) || 0)) : "",
+    );
     setAnio(String(proceso?.anio ?? currentYear));
     setTipoProceso(proceso?.tipoProceso ?? TIPOS_PROCESO[0]);
     setEstado(proceso?.estado ?? "borrador");
     setError(null);
     setSaving(false);
+    setEntidadOpen(false);
+    setEntidadHighlight(0);
   }, [open, proceso, defaultEmpresaId, empresas]);
+
+  useEffect(() => {
+    if (!entidadOpen) return;
+    function onDocClick(e) {
+      if (entidadWrapRef.current?.contains(e.target)) return;
+      setEntidadOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [entidadOpen]);
+
+  const entidadesSugeridas = useMemo(() => {
+    const counts = new Map();
+    for (const p of procesos) {
+      const name = String(p.entidadContratante || "").trim();
+      if (!name) continue;
+      const key = normalizeEntidad(name);
+      const prev = counts.get(key);
+      if (!prev) {
+        counts.set(key, {
+          label: name,
+          total: 1,
+          sameEmpresa: p.empresaId === empresaId ? 1 : 0,
+        });
+      } else {
+        prev.total += 1;
+        if (p.empresaId === empresaId) prev.sameEmpresa += 1;
+        // Prefer the casing from the most used / empresa-local label
+        if (p.empresaId === empresaId) prev.label = name;
+      }
+    }
+    return [...counts.values()].sort((a, b) => {
+      if (b.sameEmpresa !== a.sameEmpresa) return b.sameEmpresa - a.sameEmpresa;
+      if (b.total !== a.total) return b.total - a.total;
+      return a.label.localeCompare(b.label, "es");
+    });
+  }, [procesos, empresaId]);
+
+  const entidadQuery = normalizeEntidad(entidadContratante);
+  const entidadOpciones = useMemo(() => {
+    const list = !entidadQuery
+      ? entidadesSugeridas
+      : entidadesSugeridas.filter((e) =>
+          normalizeEntidad(e.label).includes(entidadQuery),
+        );
+    return list.slice(0, 8);
+  }, [entidadesSugeridas, entidadQuery]);
+
+  function pickEntidad(label) {
+    setEntidadContratante(label);
+    setEntidadOpen(false);
+    setEntidadHighlight(0);
+  }
+
+  function onEntidadKeyDown(e) {
+    if (!entidadOpen && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+      setEntidadOpen(true);
+      return;
+    }
+    if (!entidadOpen || entidadOpciones.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setEntidadHighlight((i) => (i + 1) % entidadOpciones.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setEntidadHighlight(
+        (i) => (i - 1 + entidadOpciones.length) % entidadOpciones.length,
+      );
+    } else if (e.key === "Enter" && entidadOpciones[entidadHighlight]) {
+      e.preventDefault();
+      pickEntidad(entidadOpciones[entidadHighlight].label);
+    } else if (e.key === "Escape") {
+      setEntidadOpen(false);
+    }
+  }
 
   async function onSubmit(event) {
     event.preventDefault();
@@ -54,7 +145,7 @@ export default function ProcesoFormModal({
       empresaId,
       objeto: objeto.trim(),
       entidadContratante: entidadContratante.trim(),
-      monto,
+      monto: Math.round(Number(monto) || 0),
       anio,
       tipoProceso,
       estado,
@@ -122,22 +213,64 @@ export default function ProcesoFormModal({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Entidad contratante">
-            <input
-              required
-              className={inputClass}
-              value={entidadContratante}
-              onChange={(e) => setEntidadContratante(e.target.value)}
-            />
+            <div className="relative" ref={entidadWrapRef}>
+              <input
+                required
+                className={inputClass}
+                value={entidadContratante}
+                autoComplete="off"
+                role="combobox"
+                aria-expanded={entidadOpen}
+                aria-autocomplete="list"
+                aria-controls="entidad-sugerencias"
+                placeholder="Escribe o elige una existente…"
+                onFocus={() => setEntidadOpen(true)}
+                onChange={(e) => {
+                  setEntidadContratante(e.target.value);
+                  setEntidadOpen(true);
+                  setEntidadHighlight(0);
+                }}
+                onKeyDown={onEntidadKeyDown}
+              />
+              {entidadOpen && entidadOpciones.length > 0 ? (
+                <ul
+                  id="entidad-sugerencias"
+                  role="listbox"
+                  className="absolute z-30 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+                >
+                  {entidadOpciones.map((opt, idx) => {
+                    const active = idx === entidadHighlight;
+                    return (
+                      <li key={opt.label} role="option" aria-selected={active}>
+                        <button
+                          type="button"
+                          className={`flex w-full px-3 py-2 text-left text-sm ${
+                            active
+                              ? "bg-[color-mix(in_srgb,var(--brand)_12%,white)] text-slate-900"
+                              : "text-slate-800 hover:bg-slate-50"
+                          }`}
+                          onMouseEnter={() => setEntidadHighlight(idx)}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => pickEntidad(opt.label)}
+                        >
+                          <span className="min-w-0 truncate">{opt.label}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
+            </div>
           </Field>
           <Field label="Monto (USD)">
             <input
               required
               type="number"
               min="0"
-              step="0.01"
+              step="1"
               className={inputClass}
               value={monto}
-              onChange={(e) => setMonto(e.target.value)}
+              onChange={(e) => setMonto(e.target.value.replace(/[^\d]/g, ""))}
             />
           </Field>
           <Field label="Año">

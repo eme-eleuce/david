@@ -24,7 +24,7 @@ export default function DashboardMain({ children }) {
       <Header />
       <main
         ref={mainRef}
-        className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-3 md:overflow-hidden sm:p-6"
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden p-3 sm:p-6 md:overflow-hidden"
       >
         {children}
       </main>

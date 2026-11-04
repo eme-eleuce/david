@@ -70,8 +70,7 @@ export default function EmpresaPicker() {
 
       {empresas.length === 0 && (
         <p className="text-center text-sm text-slate-500">
-          No hay empresas. Créalas en Configuración o ejecuta el seed en
-          Supabase.
+          No hay empresas cargadas. Ejecuta el seed en Supabase.
         </p>
       )}
     </div>

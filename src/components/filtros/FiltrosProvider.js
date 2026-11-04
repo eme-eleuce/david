@@ -12,9 +12,10 @@ import { ESTADOS_PROCESO } from "@/lib/constants";
 const FiltrosContext = createContext(null);
 
 export const TIPOS_PROCESO = [
-  "Licitación pública",
-  "Contratación directa",
-  "Cotización",
+  "Bienes",
+  "Servicio",
+  "Consultoría",
+  "Obra",
 ];
 
 export const ANIOS_DISPONIBLES = [2026, 2025, 2024, 2023];

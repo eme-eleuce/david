@@ -23,6 +23,7 @@ export const TIPOS_DOCUMENTO = {
   acta_provisional: "Acta provisional",
   acta_definitiva: "Acta definitiva",
   certificado: "Certificado",
+  expediente: "Expediente",
 };
 
 export const DOC_TIPO_ORDER = Object.keys(TIPOS_DOCUMENTO);

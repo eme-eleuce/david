@@ -49,7 +49,7 @@ export const procesos = [
     entidadContratante: "AQUAGOLD",
     monto: 125000,
     anio: 2025,
-    tipoProceso: "Licitación pública",
+    tipoProceso: "Bienes",
     estado: "finalizado",
   },
   {
@@ -59,7 +59,7 @@ export const procesos = [
     entidadContratante: "GAD Municipal",
     monto: 48200.5,
     anio: 2025,
-    tipoProceso: "Contratación directa",
+    tipoProceso: "Servicio",
     estado: "en_ejecucion",
   },
   {
@@ -69,7 +69,7 @@ export const procesos = [
     entidadContratante: "Petroindustrial",
     monto: 31500,
     anio: 2024,
-    tipoProceso: "Cotización",
+    tipoProceso: "Consultoría",
     estado: "finalizado",
   },
   {
@@ -79,7 +79,7 @@ export const procesos = [
     entidadContratante: "AQUAGOLD",
     monto: 89000,
     anio: 2026,
-    tipoProceso: "Licitación pública",
+    tipoProceso: "Obra",
     estado: "en_revision",
   },
   {
@@ -89,7 +89,7 @@ export const procesos = [
     entidadContratante: "Consorcio Andino",
     monto: 156000,
     anio: 2025,
-    tipoProceso: "Licitación pública",
+    tipoProceso: "Bienes",
     estado: "finalizado",
   },
   {
@@ -99,7 +99,7 @@ export const procesos = [
     entidadContratante: "GAD Provincial",
     monto: 27800,
     anio: 2026,
-    tipoProceso: "Contratación directa",
+    tipoProceso: "Servicio",
     estado: "borrador",
   },
   {
@@ -109,7 +109,7 @@ export const procesos = [
     entidadContratante: "TechCorp Latam",
     monto: 64200,
     anio: 2025,
-    tipoProceso: "Cotización",
+    tipoProceso: "Consultoría",
     estado: "finalizado",
   },
   {
@@ -119,7 +119,7 @@ export const procesos = [
     entidadContratante: "AQUAGOLD",
     monto: 19500,
     anio: 2026,
-    tipoProceso: "Contratación directa",
+    tipoProceso: "Obra",
     estado: "en_ejecucion",
   },
   {
@@ -129,7 +129,7 @@ export const procesos = [
     entidadContratante: "Minera del Pacífico",
     monto: 210000,
     anio: 2024,
-    tipoProceso: "Licitación pública",
+    tipoProceso: "Bienes",
     estado: "finalizado",
   },
   {
@@ -139,7 +139,7 @@ export const procesos = [
     entidadContratante: "GAD Municipal",
     monto: 8500,
     anio: 2026,
-    tipoProceso: "Cotización",
+    tipoProceso: "Servicio",
     estado: "en_revision",
   },
   {
@@ -149,7 +149,7 @@ export const procesos = [
     entidadContratante: "Consorcio Andino",
     monto: 178500,
     anio: 2026,
-    tipoProceso: "Licitación pública",
+    tipoProceso: "Consultoría",
     estado: "en_ejecucion",
   },
   {
@@ -159,7 +159,7 @@ export const procesos = [
     entidadContratante: "Minera del Pacífico",
     monto: 42300,
     anio: 2025,
-    tipoProceso: "Cotización",
+    tipoProceso: "Obra",
     estado: "finalizado",
   },
   {
@@ -169,7 +169,7 @@ export const procesos = [
     entidadContratante: "Petroindustrial",
     monto: 26750,
     anio: 2026,
-    tipoProceso: "Contratación directa",
+    tipoProceso: "Bienes",
     estado: "en_ejecucion",
   },
   {
@@ -179,7 +179,7 @@ export const procesos = [
     entidadContratante: "TechCorp Latam",
     monto: 18900,
     anio: 2024,
-    tipoProceso: "Cotización",
+    tipoProceso: "Servicio",
     estado: "finalizado",
   },
   {
@@ -189,7 +189,7 @@ export const procesos = [
     entidadContratante: "GAD Provincial",
     monto: 33400,
     anio: 2026,
-    tipoProceso: "Licitación pública",
+    tipoProceso: "Consultoría",
     estado: "borrador",
   },
   {
@@ -199,7 +199,7 @@ export const procesos = [
     entidadContratante: "AQUAGOLD",
     monto: 51200,
     anio: 2025,
-    tipoProceso: "Contratación directa",
+    tipoProceso: "Obra",
     estado: "finalizado",
   },
   {
@@ -209,7 +209,7 @@ export const procesos = [
     entidadContratante: "Consorcio Andino",
     monto: 12400,
     anio: 2026,
-    tipoProceso: "Cotización",
+    tipoProceso: "Bienes",
     estado: "en_revision",
   },
   {
@@ -219,7 +219,7 @@ export const procesos = [
     entidadContratante: "GAD Municipal",
     monto: 67800,
     anio: 2025,
-    tipoProceso: "Licitación pública",
+    tipoProceso: "Servicio",
     estado: "finalizado",
   },
   {
@@ -229,7 +229,7 @@ export const procesos = [
     entidadContratante: "Petroindustrial",
     monto: 9800,
     anio: 2026,
-    tipoProceso: "Contratación directa",
+    tipoProceso: "Consultoría",
     estado: "en_ejecucion",
   },
   {
@@ -239,7 +239,7 @@ export const procesos = [
     entidadContratante: "Minera del Pacífico",
     monto: 145000,
     anio: 2026,
-    tipoProceso: "Licitación pública",
+    tipoProceso: "Obra",
     estado: "en_revision",
   },
   {
@@ -249,7 +249,7 @@ export const procesos = [
     entidadContratante: "TechCorp Latam",
     monto: 15600,
     anio: 2024,
-    tipoProceso: "Cotización",
+    tipoProceso: "Bienes",
     estado: "finalizado",
   },
   {
@@ -259,7 +259,7 @@ export const procesos = [
     entidadContratante: "AQUAGOLD",
     monto: 22100,
     anio: 2025,
-    tipoProceso: "Contratación directa",
+    tipoProceso: "Servicio",
     estado: "finalizado",
   },
 ];

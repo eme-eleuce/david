@@ -44,7 +44,7 @@ export async function createProceso(fields) {
       empresa_id: Number(fields.empresaId),
       objeto: fields.objeto,
       entidad_contratante: fields.entidadContratante,
-      monto: Number(fields.monto) || 0,
+      monto: Math.round(Number(fields.monto) || 0),
       anio: Number(fields.anio),
       tipo_proceso: fields.tipoProceso,
       estado: fields.estado,
@@ -61,7 +61,9 @@ export async function updateProceso(id, fields) {
   if (fields.entidadContratante != null) {
     payload.entidad_contratante = fields.entidadContratante;
   }
-  if (fields.monto != null) payload.monto = Number(fields.monto) || 0;
+  if (fields.monto != null) {
+    payload.monto = Math.round(Number(fields.monto) || 0);
+  }
   if (fields.anio != null) payload.anio = Number(fields.anio);
   if (fields.tipoProceso != null) payload.tipo_proceso = fields.tipoProceso;
   if (fields.estado != null) payload.estado = fields.estado;
@@ -118,6 +120,47 @@ export async function deleteDocumento(doc) {
   }
 
   return supabase.from("documentos").delete().eq("id", doc.id);
+}
+
+/** Sube archivo al expediente de una empresa (aparte de docs de proceso). */
+export async function uploadExpedienteDocumento({ empresaId, file }) {
+  const supabase = client();
+  const safeName = file.name.replace(/[^\w.\-]+/g, "_");
+  const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const storagePath = `expediente/${empresaId}/${unique}-${safeName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("documentos")
+    .upload(storagePath, file, { upsert: false });
+
+  if (uploadError) return { data: null, error: uploadError };
+
+  const { data, error } = await supabase
+    .from("expediente_documentos")
+    .insert({
+      empresa_id: Number(empresaId),
+      nombre: file.name,
+      storage_path: storagePath,
+    })
+    .select("*")
+    .single();
+
+  if (error) {
+    await supabase.storage.from("documentos").remove([storagePath]);
+    return { data: null, error };
+  }
+
+  return { data, error: null };
+}
+
+export async function deleteExpedienteDocumento(doc) {
+  const supabase = client();
+
+  if (doc.storagePath) {
+    await supabase.storage.from("documentos").remove([doc.storagePath]);
+  }
+
+  return supabase.from("expediente_documentos").delete().eq("id", doc.id);
 }
 
 /** TTL por defecto para vista previa / descarga: 10 minutos */

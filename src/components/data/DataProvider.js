@@ -13,6 +13,7 @@ import {
   computeKpis,
   mapDocumento,
   mapEmpresa,
+  mapExpedienteDocumento,
   mapProceso,
 } from "@/lib/mappers";
 
@@ -22,6 +23,7 @@ export function DataProvider({ children }) {
   const [empresas, setEmpresas] = useState([]);
   const [procesos, setProcesos] = useState([]);
   const [documentos, setDocumentos] = useState([]);
+  const [expedienteDocumentos, setExpedienteDocumentos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -29,11 +31,19 @@ export function DataProvider({ children }) {
     setError(null);
     const supabase = createClient();
 
-    const [empresasRes, procesosRes, documentosRes] = await Promise.all([
-      supabase.from("empresas").select("*").order("nombre"),
-      supabase.from("procesos").select("*").order("created_at", { ascending: false }),
-      supabase.from("documentos").select("*").order("id"),
-    ]);
+    const [empresasRes, procesosRes, documentosRes, expedienteRes] =
+      await Promise.all([
+        supabase.from("empresas").select("*").order("nombre"),
+        supabase
+          .from("procesos")
+          .select("*")
+          .order("created_at", { ascending: false }),
+        supabase.from("documentos").select("*").order("id"),
+        supabase
+          .from("expediente_documentos")
+          .select("*")
+          .order("created_at", { ascending: false }),
+      ]);
 
     if (empresasRes.error || procesosRes.error || documentosRes.error) {
       const msg =
@@ -45,6 +55,7 @@ export function DataProvider({ children }) {
       setEmpresas([]);
       setProcesos([]);
       setDocumentos([]);
+      setExpedienteDocumentos([]);
       setLoading(false);
       return;
     }
@@ -52,6 +63,14 @@ export function DataProvider({ children }) {
     setEmpresas((empresasRes.data ?? []).map(mapEmpresa));
     setProcesos((procesosRes.data ?? []).map(mapProceso));
     setDocumentos((documentosRes.data ?? []).map(mapDocumento));
+    // Tabla nueva: si aún no existe en Supabase, no tumbar el resto de la app
+    if (expedienteRes.error) {
+      setExpedienteDocumentos([]);
+    } else {
+      setExpedienteDocumentos(
+        (expedienteRes.data ?? []).map(mapExpedienteDocumento),
+      );
+    }
     setLoading(false);
   }, []);
 
@@ -64,6 +83,7 @@ export function DataProvider({ children }) {
       empresas,
       procesos,
       documentos,
+      expedienteDocumentos,
       loading,
       error,
       refresh,
@@ -79,11 +99,24 @@ export function DataProvider({ children }) {
       getDocumentosByProceso(procesoId) {
         return documentos.filter((d) => d.procesoId === procesoId);
       },
+      getExpedienteByEmpresa(empresaId) {
+        return expedienteDocumentos.filter(
+          (d) => String(d.empresaId) === String(empresaId),
+        );
+      },
       getEmpresaBySlug(slug) {
         return empresas.find((e) => e.slug === slug) ?? null;
       },
     }),
-    [empresas, procesos, documentos, loading, error, refresh],
+    [
+      empresas,
+      procesos,
+      documentos,
+      expedienteDocumentos,
+      loading,
+      error,
+      refresh,
+    ],
   );
 
   return (
