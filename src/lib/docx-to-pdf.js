@@ -120,8 +120,62 @@ try {
 }
 
 /**
+ * Fallback para Vercel / Linux sin Word ni LibreOffice.
+ * Usa ConvertAPI (https://www.convertapi.com/) con CONVERTAPI_SECRET.
+ * @param {Uint8Array|Buffer} docxBytes
+ * @returns {Promise<Buffer>}
+ */
+async function convertWithConvertApi(docxBytes) {
+  const secret =
+    process.env.CONVERTAPI_SECRET || process.env.CONVERTAPI_TOKEN;
+  if (!secret) {
+    throw new Error(
+      "CONVERTAPI_SECRET no configurado (necesario en Vercel para PDF)",
+    );
+  }
+
+  const form = new FormData();
+  form.append(
+    "File",
+    new Blob([docxBytes], {
+      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    }),
+    "documento.docx",
+  );
+  // Devuelve el PDF en base64 en la respuesta (sin guardar en ConvertAPI)
+  form.append("StoreFile", "false");
+
+  const res = await fetch(
+    "https://v2.convertapi.com/convert/docx/to/pdf",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${secret}`,
+      },
+      body: form,
+    },
+  );
+
+  const payload = await res.json().catch(() => null);
+  if (!res.ok) {
+    const msg =
+      payload?.Message ||
+      payload?.message ||
+      `ConvertAPI HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+
+  const fileData = payload?.Files?.[0]?.FileData;
+  if (!fileData || typeof fileData !== "string") {
+    throw new Error("ConvertAPI no devolvió el PDF");
+  }
+
+  return Buffer.from(fileData, "base64");
+}
+
+/**
  * Convierte un buffer/Uint8Array DOCX a PDF.
- * En Windows prioriza Word; si no, LibreOffice.
+ * Orden: Word (Windows) → LibreOffice → ConvertAPI (nube / Vercel).
  * @param {Uint8Array|Buffer} docxBytes
  * @returns {Promise<Buffer>}
  */
@@ -152,13 +206,20 @@ export async function convertDocxToPdf(docxBytes) {
       }
     }
 
-    if (!outPdf) {
-      throw new Error(
-        `No se pudo convertir DOCX a PDF. ${errors.join(" | ") || "Instala Microsoft Word o LibreOffice."}`,
-      );
+    if (outPdf) {
+      return await readFile(outPdf);
     }
 
-    return await readFile(outPdf);
+    // Producción (Vercel): API en la nube
+    try {
+      return await convertWithConvertApi(docxBytes);
+    } catch (err) {
+      errors.push(`ConvertAPI: ${err?.message || err}`);
+    }
+
+    throw new Error(
+      `No se pudo convertir DOCX a PDF. ${errors.join(" | ") || "Configura CONVERTAPI_SECRET en Vercel o instala Word/LibreOffice."}`,
+    );
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => {});
   }

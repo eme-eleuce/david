@@ -56,7 +56,7 @@ export async function POST(request) {
       {
         error:
           err?.message ||
-          "No se pudo convertir a PDF. ¿Está instalado Microsoft Word o LibreOffice?",
+          "No se pudo convertir a PDF. En Vercel configura CONVERTAPI_SECRET.",
       },
       { status: 500 },
     );
