@@ -7,6 +7,8 @@ import {
   ArrowLeft,
   Building2,
   Calendar,
+  ChevronDown,
+  ChevronUp,
   CircleDollarSign,
   FileType,
   Landmark,
@@ -31,6 +33,7 @@ export default function ProcesoPage({ params }) {
   const [deleting, setDeleting] = useState(false);
   const [savingEstado, setSavingEstado] = useState(false);
   const [actionError, setActionError] = useState(null);
+  const [detailOpen, setDetailOpen] = useState(true);
 
   if (loading) {
     return <LoadingBlock label="Cargando proceso…" />;
@@ -127,6 +130,23 @@ export default function ProcesoPage({ params }) {
             <div className="flex shrink-0 items-center gap-1.5">
               <button
                 type="button"
+                onClick={() => setDetailOpen((v) => !v)}
+                aria-expanded={detailOpen}
+                aria-controls="proceso-detail-panel"
+                title={detailOpen ? "Ocultar detalle" : "Mostrar detalle"}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:bg-slate-50 hover:text-brand sm:h-9 sm:w-9 md:hidden"
+              >
+                {detailOpen ? (
+                  <ChevronUp className="h-4 w-4" aria-hidden />
+                ) : (
+                  <ChevronDown className="h-4 w-4" aria-hidden />
+                )}
+                <span className="sr-only">
+                  {detailOpen ? "Ocultar detalle" : "Mostrar detalle"}
+                </span>
+              </button>
+              <button
+                type="button"
                 onClick={() => setEditOpen(true)}
                 className="inline-flex h-8 items-center justify-center gap-1 rounded-lg bg-brand px-2.5 text-xs font-medium text-white shadow-sm transition hover:bg-brand-hover sm:h-9 sm:px-3 sm:text-sm"
               >
@@ -151,65 +171,72 @@ export default function ProcesoPage({ params }) {
             </p>
           )}
 
-          <dl className="grid grid-cols-2 gap-1.5 sm:grid-cols-2 sm:gap-2 lg:grid-cols-3 xl:grid-cols-5">
-            <MetaField
-              icon={Building2}
-              label="Empresa"
-              value={empresa?.nombre ?? "—"}
-            />
-            <MetaField
-              icon={Landmark}
-              label="Entidad"
-              value={proceso.entidadContratante}
-            />
-            <MetaField
-              icon={CircleDollarSign}
-              label="Monto"
-              value={formatMoney(proceso.monto)}
-              emphasize
-            />
-            <MetaField
-              icon={Calendar}
-              label="Año"
-              value={String(proceso.anio)}
-            />
-            <MetaField
-              icon={FileType}
-              label="Tipo"
-              value={proceso.tipoProceso}
-              className="col-span-2 sm:col-span-2 lg:col-span-1"
-            />
-          </dl>
+          <div
+            id="proceso-detail-panel"
+            className={`space-y-2.5 sm:space-y-3 ${
+              detailOpen ? "" : "max-md:hidden"
+            }`}
+          >
+            <dl className="grid grid-cols-2 gap-1.5 sm:grid-cols-2 sm:gap-2 lg:grid-cols-3 xl:grid-cols-5">
+              <MetaField
+                icon={Building2}
+                label="Empresa"
+                value={empresa?.nombre ?? "—"}
+              />
+              <MetaField
+                icon={Landmark}
+                label="Entidad"
+                value={proceso.entidadContratante}
+              />
+              <MetaField
+                icon={CircleDollarSign}
+                label="Monto"
+                value={formatMoney(proceso.monto)}
+                emphasize
+              />
+              <MetaField
+                icon={Calendar}
+                label="Año"
+                value={String(proceso.anio)}
+              />
+              <MetaField
+                icon={FileType}
+                label="Tipo"
+                value={proceso.tipoProceso}
+                className="col-span-2 sm:col-span-2 lg:col-span-1"
+              />
+            </dl>
 
-          <div className="border-t border-slate-100 pt-2.5 sm:pt-3">
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400 sm:text-xs">
-              Cambiar estado
-            </p>
-            <div className="flex flex-wrap gap-1 rounded-lg bg-slate-50/90 p-1 ring-1 ring-slate-100">
-              {Object.entries(ESTADOS_PROCESO).map(([value, label]) => {
-                const active = proceso.estado === value;
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    disabled={savingEstado}
-                    onClick={() => onEstadoChange(value)}
-                    className={`rounded-md px-2 py-1 text-[11px] font-medium transition sm:px-2.5 sm:py-1.5 sm:text-xs ${
-                      active
-                        ? `${ESTADO_STYLES[value]} shadow-sm`
-                        : "text-slate-500 hover:bg-white hover:text-slate-800"
-                    } disabled:opacity-60`}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
+            <div className="border-t border-slate-100 pt-2.5 sm:pt-3">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400 sm:text-xs">
+                Cambiar estado
+              </p>
+              <div className="flex flex-wrap gap-1 rounded-lg bg-slate-50/90 p-1 ring-1 ring-slate-100">
+                {Object.entries(ESTADOS_PROCESO).map(([value, label]) => {
+                  const active = proceso.estado === value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      disabled={savingEstado}
+                      onClick={() => onEstadoChange(value)}
+                      className={`rounded-md px-2 py-1 text-[11px] font-medium transition sm:px-2.5 sm:py-1.5 sm:text-xs ${
+                        active
+                          ? `${ESTADO_STYLES[value]} shadow-sm`
+                          : "text-slate-500 hover:bg-white hover:text-slate-800"
+                      } disabled:opacity-60`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <section className="flex min-h-[18rem] flex-1 flex-col overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm md:min-h-0 md:rounded-2xl">
+      <section className="flex flex-col rounded-xl border border-slate-200/80 bg-white shadow-sm max-md:flex-none md:min-h-0 md:flex-1 md:overflow-hidden md:rounded-2xl">
         <DocumentosPanel procesoId={proceso.id} />
       </section>
 

@@ -49,9 +49,14 @@ export function EmpresaProvider({ children }) {
     setStoredSlug(slug);
   }, [pathname]);
 
+  const isPickEmpresaPage = pathname === "/";
+
   const value = useMemo(() => {
     const match = pathname.match(/^\/empresas\/([^/]+)/);
-    const slug = match?.[1] ?? storedSlug;
+    // En `/` no reutilizar la empresa guardada: pantalla neutral de elección
+    const slug = isPickEmpresaPage
+      ? null
+      : (match?.[1] ?? storedSlug);
     const empresa = slug
       ? (empresas.find((e) => e.slug === slug) ?? null)
       : null;
@@ -62,12 +67,21 @@ export function EmpresaProvider({ children }) {
       empresas,
       isTodas: !empresa,
       isEmpresaRoute: Boolean(match),
+      isPickEmpresaPage,
       storedSlug,
       ready,
       loadingEmpresas: loading,
       pickerOpen,
     };
-  }, [empresas, pathname, storedSlug, ready, loading, pickerOpen]);
+  }, [
+    empresas,
+    pathname,
+    storedSlug,
+    ready,
+    loading,
+    pickerOpen,
+    isPickEmpresaPage,
+  ]);
 
   const openPicker = useCallback(() => setPickerOpen(true), []);
   const closePicker = useCallback(() => {
@@ -97,16 +111,18 @@ export function EmpresaProvider({ children }) {
     [router],
   );
 
-  // Tema según empresa activa
+  // Tema según empresa activa (neutro en pantalla de elección)
   useEffect(() => {
     applyEmpresaTheme(value.empresa?.slug ?? null);
   }, [value.empresa?.slug]);
 
-  // Al abrir la app sin empresa → popup obligatorio
+  // Rutas del dashboard sin empresa → volver a elegir (no popup)
   useEffect(() => {
-    if (!ready || loading) return;
-    if (!value.empresa) setPickerOpen(true);
-  }, [ready, loading, value.empresa]);
+    if (!ready || loading || isPickEmpresaPage) return;
+    if (!value.empresa) {
+      router.replace("/");
+    }
+  }, [ready, loading, isPickEmpresaPage, value.empresa, router]);
 
   const ctx = useMemo(
     () => ({

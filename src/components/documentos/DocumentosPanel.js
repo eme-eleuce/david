@@ -200,7 +200,7 @@ export default function DocumentosPanel({ procesoId }) {
     : Folder;
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex min-h-0 flex-col max-md:h-auto md:h-full">
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5 md:py-3.5">
         <div className="min-w-0">
           {currentFolder ? (
@@ -286,7 +286,7 @@ export default function DocumentosPanel({ procesoId }) {
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-auto overscroll-contain p-3 sm:p-4 md:p-4">
+      <div className="p-3 max-md:overflow-visible sm:p-4 md:min-h-0 md:flex-1 md:overflow-auto md:overscroll-contain md:p-4">
         {error && !uploadOpen && (
           <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
             {error}

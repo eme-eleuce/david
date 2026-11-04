@@ -8,7 +8,6 @@ import { useSidebarNav } from "@/components/layout/SidebarNavContext";
 function usePageTitle() {
   const pathname = usePathname();
 
-  if (pathname === "/") return "Escoger empresa";
   if (pathname.startsWith("/empresas/")) return "Vista general";
   if (pathname.startsWith("/expediente")) return "Expediente";
   if (pathname.startsWith("/documentoteca")) return "Expediente";

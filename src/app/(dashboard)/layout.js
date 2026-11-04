@@ -1,5 +1,4 @@
-import Sidebar from "@/components/layout/Sidebar";
-import DashboardMain from "@/components/layout/DashboardMain";
+import DashboardShell from "@/components/layout/DashboardShell";
 import { SidebarNavProvider } from "@/components/layout/SidebarNavContext";
 import { EmpresaProvider } from "@/components/empresas/EmpresaProvider";
 import { FiltrosProvider } from "@/components/filtros/FiltrosProvider";
@@ -11,10 +10,7 @@ export default function DashboardLayout({ children }) {
       <EmpresaProvider>
         <FiltrosProvider>
           <SidebarNavProvider>
-            <div className="flex h-dvh max-h-dvh overflow-hidden bg-background">
-              <Sidebar />
-              <DashboardMain>{children}</DashboardMain>
-            </div>
+            <DashboardShell>{children}</DashboardShell>
           </SidebarNavProvider>
         </FiltrosProvider>
       </EmpresaProvider>

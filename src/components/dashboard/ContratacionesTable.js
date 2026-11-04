@@ -100,7 +100,7 @@ export default function ContratacionesTable({
   return (
     <section
       ref={sectionRef}
-      className="flex min-h-0 flex-1 scroll-mt-3 flex-col overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm"
+      className="flex min-h-0 scroll-mt-3 flex-col rounded-xl border border-slate-200/80 bg-white shadow-sm max-md:flex-none md:min-h-0 md:flex-1 md:overflow-hidden"
     >
       {(loading || error) && (
         <div
@@ -225,17 +225,7 @@ export default function ContratacionesTable({
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-x-auto">
-        <div className="flex flex-wrap gap-x-3 gap-y-1 border-b border-slate-50 px-4 py-2 text-[10px] text-slate-400 sm:px-5">
-          {DOC_TIPO_ORDER.map((tipo) => (
-            <span key={tipo} className="inline-flex items-center gap-1">
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${DOC_TIPO_DOT[tipo]}`}
-              />
-              {TIPOS_DOCUMENTO[tipo]}
-            </span>
-          ))}
-        </div>
+      <div className="overflow-x-auto md:min-h-0 md:flex-1 md:overflow-auto">
         <table className="min-w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
@@ -325,9 +315,9 @@ export default function ContratacionesTable({
                     ) : (
                       <Link
                         href={`/procesos/${proceso.id}`}
-                        className="inline-flex max-w-[11rem] flex-wrap items-center gap-1.5"
+                        className="inline-flex max-w-[14rem] flex-wrap items-center gap-1.5"
                         title={tiposPresentes
-                          .map((t) => TIPOS_DOCUMENTO[t])
+                          .map((t) => TIPOS_DOCUMENTO[t] ?? t)
                           .join(", ")}
                       >
                         {tiposPresentes.map((tipo) => (
@@ -340,7 +330,9 @@ export default function ContratacionesTable({
                               aria-hidden
                             />
                             <span className="text-[10px] font-medium text-slate-600">
-                              {DOC_TIPO_SHORT[tipo] ?? tipo}
+                              {DOC_TIPO_SHORT[tipo] ??
+                                TIPOS_DOCUMENTO[tipo] ??
+                                tipo}
                             </span>
                           </span>
                         ))}

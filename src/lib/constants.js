@@ -28,14 +28,14 @@ export const TIPOS_DOCUMENTO = {
 
 export const DOC_TIPO_ORDER = Object.keys(TIPOS_DOCUMENTO);
 
-/** Etiqueta corta para chips del dashboard. */
+/** Etiquetas en la columna Documentos del dashboard. */
 export const DOC_TIPO_SHORT = {
   contrato: "Contrato",
   poliza: "Póliza",
   factura: "Factura",
-  acta_provisional: "Acta P.",
-  acta_definitiva: "Acta D.",
-  certificado: "Cert.",
+  acta_provisional: "Acta provisional",
+  acta_definitiva: "Acta definitiva",
+  certificado: "Certificado",
 };
 
 /** Punto de color en listados / dashboard. */

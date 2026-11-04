@@ -22,6 +22,7 @@ import {
   downloadBlob,
   generateHojaVidaDocx,
 } from "@/lib/generate-hoja-vida";
+import { generateHojaVidaPdf } from "@/lib/generate-hoja-vida-pdf";
 import { getHojaVidaMeta } from "@/lib/hoja-vida-meta";
 import {
   canShareFiles,
@@ -148,40 +149,16 @@ export default function ReportesPage() {
   );
 
   async function buildPdfFile(procesosForPdf = selectedProcesos) {
-    const result = await generateHojaVidaDocx({
+    // PDF nativo en el navegador (funciona en Vercel sin Word/LibreOffice/API)
+    const result = await generateHojaVidaPdf({
       slug,
       procesos: procesosForPdf,
     });
     if (result.error) return { error: result.error };
 
-    const form = new FormData();
-    form.append(
-      "file",
-      new File([result.blob], result.fileName, {
-        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      }),
-    );
-
-    const res = await fetch("/api/convert-docx-pdf", {
-      method: "POST",
-      body: form,
-    });
-
-    if (!res.ok) {
-      let detail = "No se pudo convertir el Word a PDF.";
-      try {
-        const data = await res.json();
-        if (data?.error) detail = data.error;
-      } catch {
-        /* ignore */
-      }
-      return { error: detail };
-    }
-
-    const pdfBlob = await res.blob();
     const pdfName =
-      hvMeta?.fileNamePdf || result.fileName.replace(/\.docx$/i, ".pdf");
-    const file = new File([pdfBlob], pdfName, { type: "application/pdf" });
+      hvMeta?.fileNamePdf || result.fileName || "Hoja-de-vida.pdf";
+    const file = new File([result.blob], pdfName, { type: "application/pdf" });
     return { file, pdfName };
   }
 
@@ -282,7 +259,7 @@ export default function ReportesPage() {
       }
       downloadBlob(built.file, built.pdfName);
       setMsg(
-        `Descargado: ${built.pdfName} (convertido desde Word · ${selectedProcesos.length} proceso${selectedProcesos.length === 1 ? "" : "s"}).`,
+        `Descargado: ${built.pdfName} (${selectedProcesos.length} proceso${selectedProcesos.length === 1 ? "" : "s"}).`,
       );
     } catch (err) {
       setMsg(err?.message || "No se pudo generar el documento.");
