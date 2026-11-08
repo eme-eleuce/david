@@ -258,7 +258,7 @@ export default function DocumentoPreview({ doc, open, onClose }) {
             <DocumentoShareMenu
               doc={doc}
               iconOnly={false}
-              className="[&_button]:rounded-xl [&_button]:border [&_button]:border-slate-200 [&_button]:bg-white [&_button]:px-3 [&_button]:py-2.5 [&_button]:text-sm [&_button]:font-medium [&_button]:text-slate-700"
+              className="[&_button]:flex-1 [&_button]:justify-center [&_button]:rounded-xl [&_button]:border [&_button]:border-slate-200 [&_button]:bg-white [&_button]:px-3 [&_button]:py-2.5 [&_button]:text-slate-700 sm:[&_button]:flex-none"
             />
             <button
               type="button"

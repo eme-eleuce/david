@@ -322,7 +322,6 @@ export default function ReportesPage() {
     setBusyFormat("share-pdf");
     setMsg(null);
 
-    // Si ya está listo → compartir en este mismo clic
     const cached = getCachedFile(pdfShareCacheKey);
     if (cached && pdfSelectionKeyRef.current === selectionKey) {
       try {
@@ -333,7 +332,6 @@ export default function ReportesPage() {
       return;
     }
 
-    // Aún no: generar y abrir menú automáticamente al terminar
     setShareGateOpen(true);
     setShareGateFile(null);
     try {
@@ -343,7 +341,6 @@ export default function ReportesPage() {
         setShareGateOpen(false);
         return;
       }
-      // Intento automático (funciona en varios móviles)
       const result = await shareFileDirect(built.file, built.file.name);
       if (result.status === "shared") {
         setMsg(`Compartido: ${built.file.name}`);
@@ -366,7 +363,6 @@ export default function ReportesPage() {
         setShareGateFile(null);
         return;
       }
-      // Dejar el modal listo: al pulsar Enviar ya es el gesto válido
       setShareGateFile(built.file);
     } catch (err) {
       setMsg(err?.message || "No se pudo compartir el PDF.");
@@ -404,7 +400,7 @@ export default function ReportesPage() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 max-md:h-auto max-md:overflow-visible md:h-full md:overflow-hidden">
       <header className="shrink-0">
         <h1 className="text-lg font-semibold text-slate-900 sm:text-xl">
           Reportes
@@ -419,7 +415,7 @@ export default function ReportesPage() {
           Selecciona una empresa para ver sus reportes.
         </div>
       ) : (
-        <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm">
+        <section className="flex flex-col rounded-xl border border-slate-200/80 bg-white shadow-sm max-md:flex-none md:min-h-0 md:flex-1 md:overflow-hidden">
           <div className="shrink-0 border-b border-slate-100 px-4 py-3 sm:px-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex min-w-0 items-start gap-3">
@@ -482,7 +478,7 @@ export default function ReportesPage() {
                         className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-slate-800 transition hover:bg-slate-50 disabled:opacity-50"
                       >
                         <FileText className="h-4 w-4 text-slate-500" aria-hidden />
-                        Word (.docx)
+                        Word
                       </button>
                       <button
                         type="button"
@@ -506,7 +502,6 @@ export default function ReportesPage() {
                     if (hvMeta && !noneSelected) void ensurePdfReady();
                   }}
                   className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                  title="Un toque: espera el PDF y abre compartir"
                 >
                   {busyFormat === "share-pdf" ? (
                     <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -568,7 +563,7 @@ export default function ReportesPage() {
                 </span>
               </div>
 
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              <div className="max-md:overflow-visible md:min-h-0 md:flex-1 md:overflow-y-auto md:overscroll-contain">
                 {procesosEmpresa.length === 0 ? (
                   <p className="p-6 text-center text-sm text-slate-500">
                     No hay procesos para esta empresa.
@@ -579,7 +574,7 @@ export default function ReportesPage() {
                       const checked = selectedIds.has(p.id);
                       return (
                         <li key={p.id}>
-                          <label className="flex cursor-pointer items-start gap-3 px-4 py-3 hover:bg-slate-50 sm:px-5">
+                          <label className="flex cursor-pointer items-start gap-3 px-4 py-3.5 hover:bg-slate-50 sm:px-5 sm:py-3">
                             <input
                               type="checkbox"
                               className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 accent-[var(--brand)]"
@@ -587,17 +582,21 @@ export default function ReportesPage() {
                               onChange={() => toggleOne(p.id)}
                             />
                             <span className="min-w-0 flex-1">
-                              <span className="block text-sm font-medium text-slate-900">
+                              <span className="block text-sm font-medium leading-snug text-slate-900 sm:text-sm">
                                 {p.objeto}
                               </span>
-                              <span className="mt-0.5 block text-xs text-slate-500">
-                                {p.entidadContratante}
-                                {" · "}
-                                {formatMoney(p.monto ?? 0)}
-                                {" · "}
-                                {ESTADOS_PROCESO[p.estado] ?? p.estado}
-                                {" · "}
-                                {p.anio ?? "—"}
+                              <span className="mt-1 block text-xs leading-snug text-slate-500">
+                                <span className="block sm:inline">
+                                  {p.entidadContratante}
+                                </span>
+                                <span className="hidden sm:inline"> · </span>
+                                <span className="mt-0.5 block sm:mt-0 sm:inline">
+                                  {formatMoney(p.monto ?? 0)}
+                                  {" · "}
+                                  {ESTADOS_PROCESO[p.estado] ?? p.estado}
+                                  {" · "}
+                                  {p.anio ?? "—"}
+                                </span>
                               </span>
                             </span>
                           </label>
@@ -628,7 +627,7 @@ export default function ReportesPage() {
           ) : null}
           {hvMeta && fileShareOk && !noneSelected && pdfPrep === "ready" ? (
             <p className="shrink-0 border-t border-slate-100 px-4 py-2 text-[11px] text-slate-400 sm:px-5">
-              PDF listo: un toque en Compartir abre el menú al instante.
+              PDF listo para compartir.
             </p>
           ) : null}
         </section>
@@ -686,22 +685,22 @@ export default function ReportesPage() {
               style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
             >
               {hvMeta.headerBanner ? (
-                <div className="relative mb-8 w-full overflow-hidden">
+                <div className="relative mb-8 w-full overflow-hidden px-3 pt-4 sm:px-5 sm:pt-5">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={hvMeta.headerBanner}
                     alt=""
-                    className="h-auto w-full object-cover object-left"
+                    className="h-auto w-full object-contain object-center"
                   />
                 </div>
               ) : hvMeta.headerLeft || hvMeta.headerRight ? (
-                <div className="relative mb-8 flex min-h-[4.5rem] items-start justify-between">
+                <div className="mb-8 flex min-h-[6.5rem] items-center justify-between gap-4 px-4 pt-5 sm:min-h-[7.5rem] sm:gap-8 sm:px-6 sm:pt-6">
                   {hvMeta.headerLeft ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={hvMeta.headerLeft}
                       alt=""
-                      className="relative z-10 ml-2 mt-3 h-12 w-auto max-w-[45%] object-contain object-left sm:ml-3 sm:h-14"
+                      className="h-20 w-auto max-w-[42%] object-contain object-left sm:h-24"
                     />
                   ) : (
                     <span />
@@ -711,7 +710,7 @@ export default function ReportesPage() {
                     <img
                       src={hvMeta.headerRight}
                       alt=""
-                      className="absolute top-0 right-0 h-16 w-auto max-w-[48%] object-contain object-right sm:h-20"
+                      className="h-20 w-auto max-w-[42%] object-contain object-right sm:h-24"
                     />
                   ) : null}
                 </div>

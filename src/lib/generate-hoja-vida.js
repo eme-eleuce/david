@@ -208,10 +208,10 @@ function buildBodyChildren(meta, rows) {
 /**
  * Margen superior amplio para que el cuerpo no se meta debajo del
  * encabezado flotante (sobre todo desde la 2.ª página).
- * 2880 DXA ≈ 2".
+ * 3600 DXA ≈ 2.5" (espacio para logo/gráfico de membrete).
  * No tocamos w:header: logo izq. + gráfico der. flotan relativos a él.
  */
-const PAGE_TOP_MARGIN = 2880;
+const PAGE_TOP_MARGIN = 3600;
 const DXA_TO_EMU = 635;
 
 /** Solo sube w:top; deja w:header como en la plantilla. Sin pies. */
@@ -306,6 +306,115 @@ function stabilizeHeaderAnchors(headerXml, { leftMarginDxa, headerDistDxa }) {
   return xml;
 }
 
+const EMU_PER_INCH = 914400;
+
+/**
+ * Dibujo flotante (logo o gráfico) anclado a la página.
+ */
+function floatingHeaderPicture({
+  rId,
+  name,
+  cx,
+  cy,
+  x,
+  y,
+  docPrId,
+}) {
+  return `<w:p><w:pPr><w:pStyle w:val="Header"/></w:pPr><w:r><w:drawing>
+<wp:anchor allowOverlap="1" behindDoc="0" distB="0" distT="0" distL="0" distR="0" hidden="0" layoutInCell="1" locked="0" relativeHeight="${docPrId}" simplePos="0">
+<wp:simplePos x="0" y="0"/>
+<wp:positionH relativeFrom="page"><wp:posOffset>${x}</wp:posOffset></wp:positionH>
+<wp:positionV relativeFrom="page"><wp:posOffset>${y}</wp:posOffset></wp:positionV>
+<wp:extent cx="${cx}" cy="${cy}"/>
+<wp:effectExtent b="0" l="0" r="0" t="0"/>
+<wp:wrapNone/>
+<wp:docPr id="${docPrId}" name="${name}"/>
+<wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr>
+<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+<pic:nvPicPr><pic:cNvPr id="0" name="${name}"/><pic:cNvPicPr><a:picLocks noChangeAspect="1"/></pic:cNvPicPr></pic:nvPicPr>
+<pic:blipFill><a:blip r:embed="${rId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>
+<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm>
+<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>
+</pic:pic></a:graphicData></a:graphic>
+</wp:anchor></w:drawing></w:r></w:p>`;
+}
+
+/**
+ * Si el encabezado trae logo + gráfico pequeños / pegados (p. ej. Duropegasa),
+ * los reubica a tamaño de membrete: logo izq. y gráfico der.
+ * No toca encabezados que ya tienen buen tamaño (Multinuclear, Arenzecorp…).
+ */
+function layoutHeaderBrandImages(headerXml) {
+  const embeds = [...headerXml.matchAll(/r:embed="(rId\d+)"/gi)].map(
+    (m) => m[1],
+  );
+  const unique = [...new Set(embeds)];
+  if (unique.length === 0) return headerXml;
+
+  const hdrOpen = headerXml.match(/^[\s\S]*?<w:hdr\b[^>]*>/i)?.[0];
+  if (!hdrOpen) return headerXml;
+
+  const extents = [
+    ...headerXml.matchAll(/<wp:extent[^>]*cx="(\d+)"[^>]*cy="(\d+)"/gi),
+  ].map((m) => ({ cx: Number(m[1]), cy: Number(m[2]) }));
+
+  const maxSide = Math.max(
+    0,
+    ...extents.map((e) => Math.max(e.cx, e.cy)),
+  );
+  // Ya es membrete grande → respetar plantilla
+  if (maxSide >= 2.0 * EMU_PER_INCH) return headerXml;
+
+  const pageW = Math.round(8.5 * EMU_PER_INCH);
+  const margin = Math.round(0.55 * EMU_PER_INCH);
+  const top = Math.round(0.12 * EMU_PER_INCH);
+  const size = Math.round(2.25 * EMU_PER_INCH);
+
+  /** @type {string[]} */
+  const paragraphs = [];
+
+  if (unique.length >= 2) {
+    paragraphs.push(
+      floatingHeaderPicture({
+        rId: unique[0],
+        name: "header-logo",
+        cx: size,
+        cy: size,
+        x: margin,
+        y: top,
+        docPrId: 11,
+      }),
+    );
+    paragraphs.push(
+      floatingHeaderPicture({
+        rId: unique[1],
+        name: "header-graphic",
+        cx: size,
+        cy: size,
+        x: pageW - margin - size,
+        y: top,
+        docPrId: 12,
+      }),
+    );
+  } else {
+    paragraphs.push(
+      floatingHeaderPicture({
+        rId: unique[0],
+        name: "header-mark",
+        cx: size,
+        cy: size,
+        x: pageW - margin - size,
+        y: top,
+        docPrId: 13,
+      }),
+    );
+  }
+
+  return `${hdrOpen}${paragraphs.join("")}</w:hdr>`;
+}
+
 function headerTargetsFromSectPr(sectPrXml, documentRelsXml) {
   const ids = [
     ...sectPrXml.matchAll(/<w:headerReference\b[^>]*\br:id="([^"]+)"/gi),
@@ -368,10 +477,11 @@ async function mergeIntoTemplate(contentBlob, templatePath) {
     const headerFile = tplZip.file(headerPath);
     if (!headerFile) continue;
     const headerXml = await headerFile.async("string");
-    tplZip.file(
-      headerPath,
-      stabilizeHeaderAnchors(headerXml, { leftMarginDxa, headerDistDxa }),
-    );
+    const stabilized = stabilizeHeaderAnchors(headerXml, {
+      leftMarginDxa,
+      headerDistDxa,
+    });
+    tplZip.file(headerPath, layoutHeaderBrandImages(stabilized));
   }
 
   const decorations = extractBodyDecorations(tplBody[1]).join("");

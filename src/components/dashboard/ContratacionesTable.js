@@ -121,25 +121,35 @@ export default function ContratacionesTable({
         </div>
       )}
       <div className="flex shrink-0 flex-col gap-3 border-b border-slate-100 px-4 py-3 sm:px-5 sm:py-4">
-        <div className="relative w-full min-w-0">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar por objeto, entidad, contrato..."
-            className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-9 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/20"
-          />
-          {query ? (
-            <button
-              type="button"
-              onClick={() => setQuery("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-slate-700"
-              aria-label="Limpiar búsqueda"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          ) : null}
+        <div className="flex items-center gap-2">
+          <div className="relative min-w-0 flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar por objeto, entidad, contrato..."
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-9 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/20"
+            />
+            {query ? (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-slate-700"
+                aria-label="Limpiar búsqueda"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            onClick={() => setNuevoOpen(true)}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-brand px-3 py-2.5 text-sm font-medium text-white transition hover:bg-brand-hover"
+          >
+            <Plus className="h-4 w-4" />
+            Nuevo
+          </button>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -153,14 +163,6 @@ export default function ContratacionesTable({
             </p>
           )}
           <div className="relative flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setNuevoOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-hover"
-            >
-              <Plus className="h-4 w-4" />
-              Nuevo
-            </button>
             <button
               type="button"
               data-filtros-trigger

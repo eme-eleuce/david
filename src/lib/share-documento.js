@@ -127,8 +127,9 @@ function isGestureError(err) {
 }
 
 /**
- * Comparte el archivo. Si aún no está en cache, lo prepara y pide un 2º toque
- * (Chrome exige share() dentro del gesto del usuario; el fetch lo rompe).
+ * Comparte el archivo. Si aún no está en cache, lo prepara y luego intenta
+ * abrir el menú de compartir en el mismo flujo (sin pedir un 2º toque).
+ * Solo si el navegador bloquea el gesto se indica `ready` para reintentar.
  *
  * @returns {{ status: 'shared'|'aborted'|'unsupported'|'error'|'ready', error?: string, hint?: string }}
  */
@@ -137,7 +138,7 @@ export async function shareDocumentoAsFile(doc) {
     return {
       status: "unsupported",
       error:
-        "Este navegador no permite enviar el archivo directo. Usa “Descargar para enviar”.",
+        "Este navegador no permite enviar el archivo directo. Usa Descargar.",
     };
   }
 
@@ -150,56 +151,54 @@ export async function shareDocumentoAsFile(doc) {
         error: prepared.error || "No se pudo preparar el archivo",
       };
     }
-    // Tras el await el gesto ya no vale: pedir un segundo toque
-    return {
-      status: "ready",
-      hint: "Archivo listo. Pulsa Compartir otra vez para enviarlo.",
-    };
+    file = prepared.file;
   }
 
   if (navigator.canShare && !navigator.canShare({ files: [file] })) {
     return {
       status: "unsupported",
       error:
-        "Este dispositivo no puede adjuntar este tipo de archivo. Usa “Descargar para enviar”.",
+        "Este dispositivo no puede adjuntar este tipo de archivo. Usa Descargar.",
     };
   }
 
   try {
-    await navigator.share({ files: [file] });
+    await navigator.share({
+      files: [file],
+      title: doc.nombre || "Documento",
+    });
     return { status: "shared" };
   } catch (err) {
     if (err?.name === "AbortError") return { status: "aborted" };
 
     if (isGestureError(err)) {
-      return {
-        status: "ready",
-        hint: "Archivo listo. Pulsa Compartir otra vez para enviarlo.",
-      };
-    }
-
-    try {
-      await navigator.share({
-        files: [file],
-        title: doc.nombre || "Documento",
-      });
-      return { status: "shared" };
-    } catch (err2) {
-      if (err2?.name === "AbortError") return { status: "aborted" };
-      if (isGestureError(err2)) {
+      // Algunos navegadores (p. ej. Chrome) pierden el gesto tras el fetch.
+      // Reintento inmediato; si falla, el UI pedirá un toque más.
+      try {
+        await navigator.share({
+          files: [file],
+          title: doc.nombre || "Documento",
+        });
+        return { status: "shared" };
+      } catch (err2) {
+        if (err2?.name === "AbortError") return { status: "aborted" };
+        if (isGestureError(err2)) {
+          return {
+            status: "ready",
+            hint: "Archivo listo. Pulsa Compartir otra vez para enviarlo.",
+          };
+        }
         return {
-          status: "ready",
-          hint: "Archivo listo. Pulsa Compartir otra vez para enviarlo.",
+          status: "error",
+          error: err2?.message || "No se pudo abrir el menú de compartir",
         };
       }
-      return {
-        status: "error",
-        error:
-          err2?.message ||
-          err?.message ||
-          "No se pudo abrir el menú de compartir",
-      };
     }
+
+    return {
+      status: "error",
+      error: err?.message || "No se pudo abrir el menú de compartir",
+    };
   }
 }
 

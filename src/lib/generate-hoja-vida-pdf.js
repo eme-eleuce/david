@@ -100,10 +100,11 @@ async function embedImage(pdfDoc, bytes, pathHint = "") {
  */
 function drawBrandHeader(page, images) {
   const { banner, left, right } = images;
-  let y = PAGE_H - 28;
+  let y = PAGE_H - 32;
 
   if (banner) {
-    const maxH = 52;
+    // Banner de membrete a ancho útil (~1.5" de alto máx.)
+    const maxH = 110;
     const scale = Math.min(CONTENT_W / banner.width, maxH / banner.height);
     const w = banner.width * scale;
     const h = banner.height * scale;
@@ -113,13 +114,14 @@ function drawBrandHeader(page, images) {
       width: w,
       height: h,
     });
-    return y - h - 16;
+    return y - h - 22;
   }
 
-  const maxH = 48;
+  // Logo izq. + gráfico der., tamaño de membrete
+  const maxH = 92;
   let used = 0;
   if (left) {
-    const scale = Math.min(160 / left.width, maxH / left.height);
+    const scale = Math.min(200 / left.width, maxH / left.height);
     const w = left.width * scale;
     const h = left.height * scale;
     page.drawImage(left, {
@@ -131,7 +133,7 @@ function drawBrandHeader(page, images) {
     used = Math.max(used, h);
   }
   if (right) {
-    const scale = Math.min(120 / right.width, maxH / right.height);
+    const scale = Math.min(210 / right.width, maxH / right.height);
     const w = right.width * scale;
     const h = right.height * scale;
     page.drawImage(right, {
@@ -142,7 +144,7 @@ function drawBrandHeader(page, images) {
     });
     used = Math.max(used, h);
   }
-  return used > 0 ? y - used - 16 : y - 8;
+  return used > 0 ? y - used - 22 : y - 8;
 }
 
 /**

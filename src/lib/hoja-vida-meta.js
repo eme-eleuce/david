@@ -30,7 +30,7 @@ export const HOJA_VIDA_BY_SLUG = {
   duropegasa: {
     titulo: "HOJA DE VIDA EMPRESARIAL",
     headerLeft: "/templates/duropegasa/left.jpg",
-    headerRight: "/logos/duropegasa.png",
+    headerRight: "/templates/duropegasa/right.png",
     templatePath: "/templates/Duropegasa.docx",
     fileName: "Hoja-de-vida-Duropegasa.docx",
     fileNamePdf: "Hoja-de-vida-Duropegasa.pdf",
