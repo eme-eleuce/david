@@ -8,7 +8,7 @@ const geistSans = Geist({
 
 export const metadata = {
   title: "POTTS OS · Gestión contractual",
-  description: "Repositorio y tracking de procesos de contratación",
+  description: "Repositorio y tracking de procesos",
 };
 
 export default function RootLayout({ children }) {

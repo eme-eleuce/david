@@ -4,7 +4,7 @@ export const EMPRESA_STORAGE_KEY = "potts-empresa-slug";
 
 export const EMPRESA_LOGOS = {
   multinuclear: "/logos/multinuclear.png",
-  kurs: "/logos/kurs-2.png",
+  kurs: "/logos/kurs-1.png",
   arenzecorp: "/logos/arenzecorp.png",
   duropegasa: "/logos/duropegasa.png",
   ecuasinergy: "/logos/ecuasinergy.png",
