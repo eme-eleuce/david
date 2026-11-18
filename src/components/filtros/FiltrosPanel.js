@@ -1,10 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { useData } from "@/components/data/DataProvider";
+import { useEmpresa } from "@/components/empresas/EmpresaProvider";
 import {
-  ANIOS_DISPONIBLES,
   ORDEN_OPTIONS,
   TIPOS_PROCESO,
   useFiltros,
@@ -38,9 +45,30 @@ export default function FiltrosPanel() {
     clearFiltros,
     activeCount,
   } = useFiltros();
+  const { procesos } = useData();
+  const { empresaId, isTodas } = useEmpresa();
   const panelRef = useRef(null);
   const isMobile = useIsMobileSheet();
   const [mounted, setMounted] = useState(false);
+  const [desktopPos, setDesktopPos] = useState(null);
+
+  const aniosDisponibles = useMemo(() => {
+    const list = isTodas
+      ? procesos
+      : procesos.filter((p) => p.empresaId === empresaId);
+    const years = new Set();
+    for (const p of list) {
+      const y = Number(p.anio);
+      if (Number.isFinite(y) && y > 0) years.add(y);
+    }
+    return [...years].sort((a, b) => b - a);
+  }, [procesos, empresaId, isTodas]);
+
+  useEffect(() => {
+    if (anio != null && !aniosDisponibles.includes(anio)) {
+      setAnio(null);
+    }
+  }, [anio, aniosDisponibles, setAnio]);
 
   useEffect(() => {
     setMounted(true);
@@ -55,7 +83,7 @@ export default function FiltrosPanel() {
     return () => document.removeEventListener("keydown", onKey);
   }, [panelOpen, closePanel]);
 
-  // Desktop: cerrar al clic fuera (no en móvil: el sheet usa backdrop)
+  // Desktop: cerrar al clic fuera
   useEffect(() => {
     if (!panelOpen || isMobile !== false) return;
     function onPointer(event) {
@@ -73,6 +101,37 @@ export default function FiltrosPanel() {
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prev;
+    };
+  }, [panelOpen, isMobile]);
+
+  // Desktop: anclar al botón Filtros (portal fixed, evita clip por overflow)
+  useLayoutEffect(() => {
+    if (!panelOpen || isMobile !== false) {
+      setDesktopPos(null);
+      return;
+    }
+
+    function place() {
+      const btn = document.querySelector("[data-filtros-trigger]");
+      if (!btn) return;
+      const rect = btn.getBoundingClientRect();
+      const width = Math.min(22 * 16, window.innerWidth - 24);
+      let left = rect.right - width;
+      left = Math.min(Math.max(12, left), window.innerWidth - width - 12);
+      const top = rect.bottom + 8;
+      const maxHeight = Math.max(
+        220,
+        Math.min(window.innerHeight - top - 16, window.innerHeight * 0.72),
+      );
+      setDesktopPos({ left, top, width, maxHeight });
+    }
+
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
     };
   }, [panelOpen, isMobile]);
 
@@ -119,7 +178,7 @@ export default function FiltrosPanel() {
             onClick={() => setAnio(null)}
             label="Todos"
           />
-          {ANIOS_DISPONIBLES.map((y) => (
+          {aniosDisponibles.map((y) => (
             <ChipOption
               key={y}
               active={anio === y}
@@ -170,7 +229,7 @@ export default function FiltrosPanel() {
     </div>
   );
 
-  // Móvil: bottom sheet a pantalla completa (portal)
+  // Móvil: bottom sheet
   if (isMobile) {
     return createPortal(
       <div className="fixed inset-0 z-[200] flex flex-col justify-end">
@@ -222,15 +281,23 @@ export default function FiltrosPanel() {
     );
   }
 
-  // Desktop: dropdown anclado al botón
-  return (
+  // Desktop: portal fixed con scroll interno (no lo corta overflow del dashboard)
+  if (!desktopPos) return null;
+
+  return createPortal(
     <div
       ref={panelRef}
-      className="absolute right-0 top-full z-40 mt-2 w-[min(100vw-1.5rem,22rem)] rounded-xl border border-slate-200 bg-white p-4 shadow-lg animate-empresa-change"
       role="dialog"
       aria-label="Filtros de contrataciones"
+      className="fixed z-[200] flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl animate-empresa-change"
+      style={{
+        left: desktopPos.left,
+        top: desktopPos.top,
+        width: desktopPos.width,
+        maxHeight: desktopPos.maxHeight,
+      }}
     >
-      <div className="mb-3 flex items-center justify-between">
+      <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-4 py-3">
         <h3 className="text-sm font-semibold text-slate-900">Filtros</h3>
         <button
           type="button"
@@ -241,9 +308,14 @@ export default function FiltrosPanel() {
           <X className="h-4 w-4" />
         </button>
       </div>
-      {fields}
-      <div className="mt-4">{footer}</div>
-    </div>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3">
+        {fields}
+      </div>
+      <div className="shrink-0 border-t border-slate-100 px-4 py-3">
+        {footer}
+      </div>
+    </div>,
+    document.body,
   );
 }
 

@@ -18,8 +18,6 @@ export const TIPOS_PROCESO = [
   "Obra",
 ];
 
-export const ANIOS_DISPONIBLES = [2026, 2025, 2024, 2023];
-
 export const ORDEN_OPTIONS = [
   { value: "recientes", label: "Más recientes primero" },
   { value: "antiguos", label: "Más antiguos primero" },
@@ -38,22 +36,29 @@ function sortProcesos(list, orden) {
     if (ta !== tb) return (ta - tb) * dir;
     return (Number(a.id) - Number(b.id)) * dir;
   };
+  // Línea de tiempo por año del proceso (ej. 2026 antes que 2010), no por createdAt
+  const byAnio = (a, b, dir = -1) => {
+    const ya = Number(a.anio) || 0;
+    const yb = Number(b.anio) || 0;
+    if (ya !== yb) return (ya - yb) * dir;
+    return byCreated(a, b, dir);
+  };
 
   switch (orden) {
     case "antiguos":
-      return sorted.sort((a, b) => byCreated(a, b, 1));
+      return sorted.sort((a, b) => byAnio(a, b, 1));
     case "monto_desc":
-      return sorted.sort((a, b) => b.monto - a.monto || byCreated(a, b, -1));
+      return sorted.sort((a, b) => b.monto - a.monto || byAnio(a, b, -1));
     case "monto_asc":
-      return sorted.sort((a, b) => a.monto - b.monto || byCreated(a, b, -1));
+      return sorted.sort((a, b) => a.monto - b.monto || byAnio(a, b, -1));
     case "objeto":
       return sorted.sort(
         (a, b) =>
-          a.objeto.localeCompare(b.objeto, "es") || byCreated(a, b, -1),
+          a.objeto.localeCompare(b.objeto, "es") || byAnio(a, b, -1),
       );
     case "recientes":
     default:
-      return sorted.sort((a, b) => byCreated(a, b, -1));
+      return sorted.sort((a, b) => byAnio(a, b, -1));
   }
 }
 

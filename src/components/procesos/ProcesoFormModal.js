@@ -1,14 +1,22 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { FileText, X } from "lucide-react";
 import LoadingIcon from "@/components/ui/LoadingIcon";
 import Modal, { Field, inputClass } from "@/components/ui/Modal";
 import { useData } from "@/components/data/DataProvider";
 import { TIPOS_PROCESO } from "@/components/filtros/FiltrosProvider";
-import { ESTADOS_PROCESO } from "@/lib/constants";
-import { createProceso, updateProceso } from "@/lib/crud";
+import { ESTADOS_PROCESO, TIPOS_DOCUMENTO } from "@/lib/constants";
+import { createProceso, updateProceso, uploadDocumento } from "@/lib/crud";
 
 const currentYear = new Date().getFullYear();
+const DOC_ACCEPT = ".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg";
+
+function fileKey(file) {
+  return `${file.name}|${file.size}|${file.lastModified}`;
+}
+
+const DOC_TIPO_DEFAULT = "contrato";
 
 function normalizeEntidad(value) {
   return String(value || "")
@@ -40,6 +48,10 @@ export default function ProcesoFormModal({
   const [entidadOpen, setEntidadOpen] = useState(false);
   const [entidadHighlight, setEntidadHighlight] = useState(0);
   const entidadWrapRef = useRef(null);
+  /** @type {[{ key: string, tipo: string, file: File }]} */
+  const [pendingDocs, setPendingDocs] = useState([]);
+  /** Si el proceso ya se creó pero falló alguna subida, no reintentar el alta. */
+  const [createdId, setCreatedId] = useState(null);
 
   useEffect(() => {
     if (!open) return;
@@ -58,6 +70,8 @@ export default function ProcesoFormModal({
     setSaving(false);
     setEntidadOpen(false);
     setEntidadHighlight(0);
+    setPendingDocs([]);
+    setCreatedId(null);
   }, [open, proceso, defaultEmpresaId, empresas]);
 
   useEffect(() => {
@@ -113,6 +127,36 @@ export default function ProcesoFormModal({
     setEntidadHighlight(0);
   }
 
+  function addPendingFiles(fileList) {
+    const next = Array.from(fileList ?? []);
+    if (!next.length) return;
+    setPendingDocs((prev) => {
+      const seen = new Set(prev.map((d) => fileKey(d.file)));
+      const merged = [...prev];
+      for (const file of next) {
+        const key = fileKey(file);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        merged.push({
+          key: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          tipo: DOC_TIPO_DEFAULT,
+          file,
+        });
+      }
+      return merged;
+    });
+  }
+
+  function removePendingDoc(key) {
+    setPendingDocs((prev) => prev.filter((d) => d.key !== key));
+  }
+
+  function setPendingDocTipo(key, tipo) {
+    setPendingDocs((prev) =>
+      prev.map((d) => (d.key === key ? { ...d, tipo } : d)),
+    );
+  }
+
   function onEntidadKeyDown(e) {
     if (!entidadOpen && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
       setEntidadOpen(true);
@@ -138,6 +182,10 @@ export default function ProcesoFormModal({
 
   async function onSubmit(event) {
     event.preventDefault();
+    if (createdId) {
+      onClose();
+      return;
+    }
     setSaving(true);
     setError(null);
 
@@ -159,6 +207,32 @@ export default function ProcesoFormModal({
       setError(result.error.message);
       setSaving(false);
       return;
+    }
+
+    if (!isEdit && pendingDocs.length > 0) {
+      const procesoId = result.data?.id;
+      const failures = [];
+      for (const item of pendingDocs) {
+        const { error: uploadError } = await uploadDocumento({
+          procesoId,
+          tipo: item.tipo,
+          file: item.file,
+        });
+        if (uploadError) {
+          failures.push(`${item.file.name}: ${uploadError.message}`);
+        }
+      }
+      if (failures.length > 0) {
+        await refresh();
+        setPendingDocs([]);
+        setCreatedId(procesoId);
+        setError(
+          `Proceso creado, pero algunos documentos no se subieron:\n${failures.join("\n")}`,
+        );
+        setSaving(false);
+        onSaved?.(result.data);
+        return;
+      }
     }
 
     await refresh();
@@ -273,31 +347,33 @@ export default function ProcesoFormModal({
               onChange={(e) => setMonto(e.target.value.replace(/[^\d]/g, ""))}
             />
           </Field>
-          <Field label="Año">
-            <input
-              required
-              type="number"
-              min="2000"
-              max="2100"
-              className={inputClass}
-              value={anio}
-              onChange={(e) => setAnio(e.target.value)}
-            />
-          </Field>
-          <Field label="Tipo de proceso">
-            <select
-              required
-              className={inputClass}
-              value={tipoProceso}
-              onChange={(e) => setTipoProceso(e.target.value)}
-            >
-              {TIPOS_PROCESO.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <div className="grid grid-cols-2 gap-3 sm:contents sm:gap-0">
+            <Field label="Año">
+              <input
+                required
+                type="number"
+                min="2000"
+                max="2100"
+                className={inputClass}
+                value={anio}
+                onChange={(e) => setAnio(e.target.value)}
+              />
+            </Field>
+            <Field label="Tipo de proceso">
+              <select
+                required
+                className={inputClass}
+                value={tipoProceso}
+                onChange={(e) => setTipoProceso(e.target.value)}
+              >
+                {TIPOS_PROCESO.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
           <Field label="Estado">
             <select
               required
@@ -314,8 +390,96 @@ export default function ProcesoFormModal({
           </Field>
         </div>
 
+        {!isEdit && !createdId ? (
+          <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3 sm:p-4">
+            <div>
+              <p className="text-sm font-semibold text-slate-900">
+                Documentos
+              </p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Opcional. Agrega los archivos y luego indica el tipo de cada
+                uno.
+              </p>
+            </div>
+
+            <Field label="Archivos">
+              <input
+                type="file"
+                multiple
+                accept={DOC_ACCEPT}
+                disabled={saving}
+                className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-brand file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white"
+                onChange={(e) => {
+                  addPendingFiles(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+            </Field>
+
+            {pendingDocs.length > 0 ? (
+              <ul className="max-h-52 space-y-2 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2">
+                {pendingDocs.map((item) => (
+                  <li
+                    key={item.key}
+                    className="flex flex-col gap-1.5 rounded-md px-2 py-2 ring-1 ring-slate-100 sm:flex-row sm:items-center sm:gap-2"
+                  >
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      <FileText className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                      <span className="min-w-0 flex-1 truncate text-xs text-slate-700">
+                        {item.file.name}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={saving}
+                        onClick={() => removePendingDoc(item.key)}
+                        className="shrink-0 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50 sm:hidden"
+                        aria-label={`Quitar ${item.file.name}`}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <select
+                        className="min-w-0 flex-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs outline-none focus:border-brand focus:ring-1 focus:ring-brand/30 sm:w-40 sm:flex-none"
+                        value={item.tipo}
+                        disabled={saving}
+                        aria-label={`Tipo de ${item.file.name}`}
+                        onChange={(e) =>
+                          setPendingDocTipo(item.key, e.target.value)
+                        }
+                      >
+                        {Object.entries(TIPOS_DOCUMENTO).map(
+                          ([value, label]) => (
+                            <option key={value} value={value}>
+                              {label}
+                            </option>
+                          ),
+                        )}
+                      </select>
+                      <button
+                        type="button"
+                        disabled={saving}
+                        onClick={() => removePendingDoc(item.key)}
+                        className="hidden shrink-0 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50 sm:inline-flex"
+                        aria-label={`Quitar ${item.file.name}`}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-slate-400">
+                Sin documentos por ahora. Puedes agregarlos después en el
+                proceso.
+              </p>
+            )}
+          </div>
+        ) : null}
+
         {error && (
-          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="whitespace-pre-line rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
             {error}
           </p>
         )}
@@ -330,11 +494,20 @@ export default function ProcesoFormModal({
           </button>
           <button
             type="submit"
-            disabled={saving || !empresaId || !objeto.trim()}
+            disabled={
+              saving ||
+              (!createdId && (!empresaId || !objeto.trim()))
+            }
             className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-medium text-white hover:bg-brand-hover disabled:opacity-60"
           >
             {saving ? <LoadingIcon className="h-4 w-4" /> : null}
-            {saving ? "Guardando…" : isEdit ? "Guardar" : "Crear"}
+            {saving
+              ? "Guardando…"
+              : createdId
+                ? "Cerrar"
+                : isEdit
+                  ? "Guardar"
+                  : "Crear"}
           </button>
         </div>
       </form>

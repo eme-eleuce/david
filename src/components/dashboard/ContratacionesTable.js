@@ -181,6 +181,16 @@ export default function ContratacionesTable({
                 </span>
               )}
             </button>
+            {hasFiltros ? (
+              <button
+                type="button"
+                onClick={clearFiltros}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+              >
+                <X className="h-4 w-4" />
+                Limpiar
+              </button>
+            ) : null}
             <FiltrosPanel />
           </div>
         </div>

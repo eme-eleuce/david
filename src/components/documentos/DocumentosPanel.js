@@ -23,7 +23,7 @@ import DocumentoPreview from "@/components/documentos/DocumentoPreview";
 import DocumentoShareMenu from "@/components/documentos/DocumentoShareMenu";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import LoadingIcon from "@/components/ui/LoadingIcon";
-import Modal, { Field, inputClass } from "@/components/ui/Modal";
+import Modal, { Field } from "@/components/ui/Modal";
 import { useData } from "@/components/data/DataProvider";
 import {
   deleteDocumento,
@@ -50,13 +50,21 @@ const TIPO_ICON = {
 const filterInputClass =
   "rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-brand focus:ring-1 focus:ring-brand/30 sm:text-sm";
 
+const DOC_TIPO_DEFAULT = "contrato";
+
+function fileKey(file) {
+  return `${file.name}|${file.size}|${file.lastModified}`;
+}
+
 export default function DocumentosPanel({ procesoId }) {
   const { getDocumentosByProceso, refresh } = useData();
   const docs = getDocumentosByProceso(procesoId);
 
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [tipo, setTipo] = useState("contrato");
-  const [files, setFiles] = useState([]);
+  /** Tipo sugerido al agregar archivos (p. ej. carpeta abierta). */
+  const [defaultTipo, setDefaultTipo] = useState(DOC_TIPO_DEFAULT);
+  /** @type {[{ key: string, tipo: string, file: File }]} */
+  const [pendingDocs, setPendingDocs] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [previewDoc, setPreviewDoc] = useState(null);
@@ -132,38 +140,74 @@ export default function DocumentosPanel({ procesoId }) {
     setActiveFolder(null);
   }
 
-  function removeSelectedFile(index) {
-    setFiles((prev) => prev.filter((_, i) => i !== index));
+  function openUploadModal() {
+    setError(null);
+    setPendingDocs([]);
+    setDefaultTipo(currentFolder?.tipo ?? DOC_TIPO_DEFAULT);
+    setUploadOpen(true);
+  }
+
+  function addPendingFiles(fileList) {
+    const next = Array.from(fileList ?? []);
+    if (!next.length) return;
+    setPendingDocs((prev) => {
+      const seen = new Set(prev.map((d) => fileKey(d.file)));
+      const merged = [...prev];
+      for (const file of next) {
+        const key = fileKey(file);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        merged.push({
+          key: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          tipo: defaultTipo,
+          file,
+        });
+      }
+      return merged;
+    });
+  }
+
+  function removePendingDoc(key) {
+    setPendingDocs((prev) => prev.filter((d) => d.key !== key));
+  }
+
+  function setPendingDocTipo(key, tipo) {
+    setPendingDocs((prev) =>
+      prev.map((d) => (d.key === key ? { ...d, tipo } : d)),
+    );
   }
 
   async function onUpload(event) {
     event.preventDefault();
-    if (!files.length) return;
+    if (!pendingDocs.length) return;
     setBusy(true);
     setError(null);
 
     const failures = [];
-    for (const file of files) {
+    let lastOkTipo = null;
+    for (const item of pendingDocs) {
       const { error: uploadError } = await uploadDocumento({
         procesoId,
-        tipo,
-        file,
+        tipo: item.tipo,
+        file: item.file,
       });
       if (uploadError) {
-        failures.push(`${file.name}: ${uploadError.message}`);
+        failures.push(`${item.file.name}: ${uploadError.message}`);
+      } else {
+        lastOkTipo = item.tipo;
       }
     }
 
-    if (failures.length === files.length) {
+    if (failures.length === pendingDocs.length) {
       setError(failures.join("\n"));
       setBusy(false);
       return;
     }
 
-    setFiles([]);
-    setTipo("contrato");
+    setPendingDocs([]);
+    setDefaultTipo(DOC_TIPO_DEFAULT);
     setUploadOpen(false);
-    setActiveFolder(tipo);
+    if (lastOkTipo) setActiveFolder(lastOkTipo);
     await refresh();
     setBusy(false);
 
@@ -244,12 +288,7 @@ export default function DocumentosPanel({ procesoId }) {
         </div>
         <button
           type="button"
-          onClick={() => {
-            setError(null);
-            setFiles([]);
-            if (currentFolder) setTipo(currentFolder.tipo);
-            setUploadOpen(true);
-          }}
+          onClick={openUploadModal}
           className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand px-3 text-sm font-medium text-white transition hover:bg-brand-hover md:h-10 md:rounded-xl md:px-3.5"
         >
           <Plus className="h-4 w-4" />
@@ -308,7 +347,7 @@ export default function DocumentosPanel({ procesoId }) {
             </div>
             <button
               type="button"
-              onClick={() => setUploadOpen(true)}
+              onClick={openUploadModal}
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:border-brand/40 hover:text-brand"
             >
               <Upload className="h-4 w-4" />
@@ -427,21 +466,6 @@ export default function DocumentosPanel({ procesoId }) {
         title="Agregar documentos"
       >
         <form onSubmit={onUpload} className="space-y-4">
-          <Field label="Tipo de documento">
-            <select
-              className={inputClass}
-              value={tipo}
-              onChange={(e) => setTipo(e.target.value)}
-              disabled={busy}
-            >
-              {Object.entries(TIPOS_DOCUMENTO).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </Field>
-
           <Field label="Archivos">
             <input
               type="file"
@@ -449,49 +473,70 @@ export default function DocumentosPanel({ procesoId }) {
               accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
               className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-brand file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white"
               onChange={(e) => {
-                const next = Array.from(e.target.files ?? []);
-                setFiles((prev) => {
-                  const names = new Set(prev.map((f) => `${f.name}-${f.size}`));
-                  const merged = [...prev];
-                  for (const f of next) {
-                    const key = `${f.name}-${f.size}`;
-                    if (!names.has(key)) {
-                      names.add(key);
-                      merged.push(f);
-                    }
-                  }
-                  return merged;
-                });
+                addPendingFiles(e.target.files);
                 e.target.value = "";
               }}
               disabled={busy}
             />
             <p className="mt-1.5 text-xs text-slate-400">
-              Puedes seleccionar varios a la vez
+              Agrega los archivos y luego indica el tipo de cada uno
             </p>
-            {files.length > 0 && (
-              <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50/80 p-2">
-                {files.map((f, index) => (
-                  <li
-                    key={`${f.name}-${f.size}-${index}`}
-                    className="flex items-center gap-2 rounded-md bg-white px-2 py-1.5 text-xs text-slate-700 ring-1 ring-slate-100"
-                  >
+          </Field>
+
+          {pendingDocs.length > 0 ? (
+            <ul className="max-h-52 space-y-2 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50/80 p-2">
+              {pendingDocs.map((item) => (
+                <li
+                  key={item.key}
+                  className="flex flex-col gap-1.5 rounded-md bg-white px-2 py-2 ring-1 ring-slate-100 sm:flex-row sm:items-center sm:gap-2"
+                >
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
                     <FileText className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                    <span className="min-w-0 flex-1 truncate">{f.name}</span>
+                    <span className="min-w-0 flex-1 truncate text-xs text-slate-700">
+                      {item.file.name}
+                    </span>
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => removeSelectedFile(index)}
-                      className="shrink-0 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
-                      aria-label={`Quitar ${f.name}`}
+                      onClick={() => removePendingDoc(item.key)}
+                      className="shrink-0 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50 sm:hidden"
+                      aria-label={`Quitar ${item.file.name}`}
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Field>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      className="min-w-0 flex-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs outline-none focus:border-brand focus:ring-1 focus:ring-brand/30 sm:w-40 sm:flex-none"
+                      value={item.tipo}
+                      disabled={busy}
+                      aria-label={`Tipo de ${item.file.name}`}
+                      onChange={(e) =>
+                        setPendingDocTipo(item.key, e.target.value)
+                      }
+                    >
+                      {Object.entries(TIPOS_DOCUMENTO).map(
+                        ([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => removePendingDoc(item.key)}
+                      className="hidden shrink-0 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50 sm:inline-flex"
+                      aria-label={`Quitar ${item.file.name}`}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : null}
 
           {error && (
             <p className="whitespace-pre-line rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -511,7 +556,7 @@ export default function DocumentosPanel({ procesoId }) {
             </button>
             <button
               type="submit"
-              disabled={busy || files.length === 0}
+              disabled={busy || pendingDocs.length === 0}
               className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-medium text-white hover:bg-brand-hover disabled:opacity-50"
             >
               {busy ? (
@@ -521,8 +566,8 @@ export default function DocumentosPanel({ procesoId }) {
               )}
               {busy
                 ? "Subiendo…"
-                : files.length > 1
-                  ? `Subir ${files.length} archivos`
+                : pendingDocs.length > 1
+                  ? `Subir ${pendingDocs.length} archivos`
                   : "Subir archivo"}
             </button>
           </div>
